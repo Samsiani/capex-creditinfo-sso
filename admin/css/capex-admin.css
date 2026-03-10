@@ -1,0 +1,240 @@
+/* --- ზოგადი სტილები --- */
+.cx-btn {
+    cursor: pointer;
+    border: 1px solid #0071a1;
+    background: #f3f5f6;
+    color: #0071a1;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    text-decoration: none;
+    transition: 0.2s;
+    display: inline-block;
+}
+.cx-btn:hover {
+    background: #f1f1f1;
+    border-color: #016087;
+    color: #016087;
+}
+.cx-btn-primary {
+    background: #0071a1;
+    color: #fff;
+    border-color: #0071a1;
+}
+.cx-btn-primary:hover {
+    background: #006799;
+    color: #fff;
+}
+.cx-btn-danger {
+    color: #d63638;
+    border-color: #d63638;
+    background: transparent;
+}
+.cx-btn-danger:hover {
+    background: #d63638;
+    color: #fff;
+}
+.cx-btn-sm {
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
+/* --- ფორმის კონსტრუქტორი (BUILDER) --- */
+#capex-builder-app {
+    padding: 20px;
+    background: #f9f9f9;
+    border: 1px solid #ccd0d4;
+    max-width: 800px;
+}
+
+/* ნაბიჯი (Step Container) */
+.cx-step {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+    margin-bottom: 20px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.cx-step-header {
+    background: #fcfcfc;
+    border-bottom: 1px solid #e5e5e5;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.cx-step-title {
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    color: #555;
+}
+
+.cx-step-body {
+    padding: 15px;
+    background: #fff;
+    min-height: 50px; 
+}
+
+/* ველი (Field Item) */
+.cx-field {
+    border: 1px solid #ddd;
+    background: #fff;
+    margin-bottom: 10px;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+}
+.cx-field-header {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: #fbfbfb;
+    cursor: move;
+}
+.cx-field-handle {
+    margin-right: 10px;
+    color: #ccc;
+    cursor: move;
+}
+.cx-field-preview {
+    flex-grow: 1;
+    font-weight: 500;
+}
+.cx-field-type-badge {
+    font-size: 10px;
+    background: #eee;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 10px;
+    color: #666;
+    text-transform: uppercase;
+}
+
+/* ველის პარამეტრები (გაშლილი) */
+.cx-field-settings {
+    padding: 15px;
+    border-top: 1px solid #eee;
+    background: #fff;
+    display: none; 
+}
+.cx-field.open .cx-field-settings {
+    display: block;
+}
+
+/* ფორმის ელემენტები ბილდერში */
+.cx-form-row {
+    margin-bottom: 15px;
+}
+.cx-form-row label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+}
+.cx-form-row input[type="text"],
+.cx-form-row select,
+.cx-form-row textarea {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* --- NEW: OPTIONS MANAGER (Radio/Select) --- */
+.cx-options-wrapper {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 5px;
+}
+.cx-option-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+.cx-option-row input {
+    flex: 1;
+}
+.cx-option-actions {
+    width: 30px;
+    text-align: center;
+}
+
+/* --- NEW: CONDITIONAL LOGIC --- */
+.cx-logic-wrapper {
+    background: #fff8e5;
+    border: 1px solid #f0c33c;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 15px;
+}
+.cx-logic-header {
+    font-weight: bold;
+    font-size: 12px;
+    margin-bottom: 10px;
+    color: #b78a08;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.cx-logic-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.cx-logic-row select, .cx-logic-row input {
+    font-size: 12px;
+    height: 30px;
+    line-height: 1;
+}
+
+/* --- განაცხადის ნახვა (ENTRY VIEW) --- */
+.capex-view-wrapper {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    max-width: 100%;
+}
+.cx-system-info {
+    background: #fff8e5;
+    border: 1px solid #f0c33c;
+    padding: 10px;
+    font-size: 12px;
+    margin-bottom: 20px;
+}
+.cx-section-title {
+    background: #f0f0f1;
+    padding: 10px;
+    font-weight: bold;
+    font-size: 14px;
+    margin-top: 25px;
+    border-left: 4px solid #0073aa;
+}
+.cx-row {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    padding: 12px 0;
+    align-items: center;
+}
+.cx-label {
+    width: 250px;
+    font-weight: 600;
+    color: #555;
+    flex-shrink: 0;
+}
+.cx-val {
+    flex-grow: 1;
+    color: #1d2327;
+}
+.cx-file-link {
+    display: inline-block;
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    padding: 5px 10px;
+    text-decoration: none;
+    border-radius: 3px;
+    font-size: 12px;
+}
