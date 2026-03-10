@@ -6,26 +6,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Capex_SSO {
 
-    // Creditinfo Endpoints
-    private $auth_endpoint      = 'https://sso.mycreditinfo.ge/authorize';
-    private $token_endpoint     = 'https://sso.mycreditinfo.ge/token';
-    private $userinfo_endpoint  = 'https://sso.mycreditinfo.ge/userinfo';
-
+    private $base_url;
     private $client_id;
     private $client_secret;
     private $redirect_handler;
     private $scope_id;
+    private $ssokey;
 
     public function __construct() {
         $this->client_id        = get_option( 'capex_client_id' );
         $this->client_secret    = get_option( 'capex_client_secret' );
         $this->redirect_handler = get_option( 'capex_redirect_handler' );
         $this->scope_id         = get_option( 'capex_scope_id', '' );
+        $this->ssokey           = get_option( 'capex_ssokey', '' );
+
+        // TEST or LIVE environment
+        $env = get_option( 'capex_environment', 'test' );
+        $this->base_url = ( 'live' === $env )
+            ? 'https://sso.mycreditinfo.ge'
+            : 'https://sso-test.mycreditinfo.ge';
     }
 
     /**
-     * 1. ავტორიზაციის URL-ის გენერირება
-     * @param string $return_url - გვერდი, სადაც მომხმარებელი უნდა დაბრუნდეს (მაგ: /auto-loan)
+     * 1. Build authorization URL
+     * @param string $return_url - page to redirect user back to after SSO
      */
     public function get_auth_url( $return_url ) {
         if ( empty( $this->client_id ) || empty( $this->redirect_handler ) || empty( $this->scope_id ) ) {
@@ -34,25 +38,24 @@ class Capex_SSO {
 
         $nonce = wp_create_nonce( 'capex_sso_nonce' );
 
-        // State: NONCE|return_url, encoded in base64
         $state_data    = $nonce . '|' . $return_url;
         $state_encoded = base64_encode( $state_data );
 
-        // Store nonce → return_url for 10 min (replay protection)
         set_transient( 'capex_sso_' . $nonce, $return_url, 10 * MINUTE_IN_SECONDS );
 
+        // Per MyCreditinfo spec: client_id, redirect_uri, scope only
         $params = array(
             'client_id'    => $this->client_id,
             'redirect_uri' => $this->redirect_handler,
-            'scope'        => $this->scope_id,           // Scope ID from MyCreditinfo (e.g. "scope1")
+            'scope'        => $this->scope_id,
             'state'        => $state_encoded,
         );
 
-        return $this->auth_endpoint . '?' . http_build_query( $params );
+        return $this->base_url . '/authorize?' . http_build_query( $params );
     }
 
     /**
-     * 2. State-ის გაშიფრვა და ვალიდაცია
+     * 2. Validate state and extract return URL
      */
     public function validate_state_and_get_url( $state_encoded ) {
         $state_decoded = base64_decode( $state_encoded );
@@ -76,9 +79,15 @@ class Capex_SSO {
     }
 
     /**
-     * 3. ტოკენის მიღება (Code Exchange)
+     * 3. Exchange authorization code for access token
+     * Requires ssokey header per MyCreditinfo API gateway
      */
     public function exchange_code_for_token( $code ) {
+        $headers = array( 'Content-Type' => 'application/x-www-form-urlencoded' );
+        if ( ! empty( $this->ssokey ) ) {
+            $headers['ssokey'] = $this->ssokey;
+        }
+
         $body = array(
             'grant_type'    => 'authorization_code',
             'code'          => $code,
@@ -87,9 +96,9 @@ class Capex_SSO {
             'client_secret' => $this->client_secret,
         );
 
-        $response = wp_remote_post( $this->token_endpoint, array(
+        $response = wp_remote_post( $this->base_url . '/token', array(
             'body'    => $body,
-            'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ),
+            'headers' => $headers,
             'timeout' => 15,
         ) );
 
@@ -107,13 +116,17 @@ class Capex_SSO {
     }
 
     /**
-     * 4. მომხმარებლის ინფოს წამოღება
+     * 4. Fetch user info with access token
+     * Requires ssokey header per MyCreditinfo API gateway
      */
     public function get_user_info( $access_token ) {
-        $response = wp_remote_get( $this->userinfo_endpoint, array(
-            'headers' => array(
-                'Authorization' => 'Bearer ' . $access_token,
-            ),
+        $headers = array( 'Authorization' => 'Bearer ' . $access_token );
+        if ( ! empty( $this->ssokey ) ) {
+            $headers['ssokey'] = $this->ssokey;
+        }
+
+        $response = wp_remote_get( $this->base_url . '/userinfo', array(
+            'headers' => $headers,
             'timeout' => 15,
         ) );
 
@@ -131,30 +144,47 @@ class Capex_SSO {
     }
 
     /**
-     * Map CreditInfo API response to our internal field keys.
+     * Map CreditInfo API response to internal field keys.
      *
-     * API response example (per docs):
+     * PERSON response:
      * {
-     *   "sub": "51dc84a3-...",          // UUID — session/user identifier
-     *   "firstName": "name",
-     *   "lastName": "lastName",
+     *   "customer_type": "PERSON",
+     *   "sub": "731757e7-...",
      *   "country": "GE",
-     *   "birthdate": "2003-09-20",
-     *   "address": "address",
-     *   "email": "name@gmail.com",
-     *   "username": "00000000000"        // Personal ID number / Tax number
+     *   "birthdate": "2001-02-03",
+     *   "address": "თბილისი",
+     *   "last_name": "კვიჭიძე",
+     *   "mobile_number": "599509333",
+     *   "first_name": "კოსტა",
+     *   "email": "mail@creditinfo.ge",
+     *   "username": "01130052216"
+     * }
+     *
+     * COMPANY response:
+     * {
+     *   "customer_type": "COMPANY",
+     *   "sub": "98863ef2-...",
+     *   "country": "GE",
+     *   "address": "გორი 1",
+     *   "mobile_number": "599509333",
+     *   "first_name": "შპს ჭიჭიკო ინტერგალაქტიკი",
+     *   "email": "mail@creditinfo.ge",
+     *   "establishment_date": "2023-08-01",
+     *   "username": "123456788"
      * }
      */
     private function map_user_data( $api_data ) {
         return array(
-            'name'     => $api_data['firstName'] ?? '',
-            'surname'  => $api_data['lastName']  ?? '',
-            'pid'      => $api_data['username']  ?? '',   // Personal ID = username field
-            'dob'      => $api_data['birthdate'] ?? '',
-            'email'    => $api_data['email']     ?? '',
-            'phone'    => $api_data['phone']     ?? '',
-            'address'  => $api_data['address']   ?? '',
-            'country'  => $api_data['country']   ?? '',
+            'customer_type'      => $api_data['customer_type']      ?? '',
+            'name'               => $api_data['first_name']         ?? '',
+            'surname'            => $api_data['last_name']          ?? '',
+            'pid'                => $api_data['username']            ?? '',
+            'dob'                => $api_data['birthdate']           ?? '',
+            'establishment_date' => $api_data['establishment_date'] ?? '',
+            'email'              => $api_data['email']               ?? '',
+            'phone'              => $api_data['mobile_number']       ?? '',
+            'address'            => $api_data['address']             ?? '',
+            'country'            => $api_data['country']             ?? '',
         );
     }
 }

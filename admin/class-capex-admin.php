@@ -393,8 +393,10 @@ class Capex_Admin {
     }
 
     public function register_settings() {
+        register_setting( 'capex_options_group', 'capex_environment' );
         register_setting( 'capex_options_group', 'capex_client_id' );
         register_setting( 'capex_options_group', 'capex_client_secret' );
+        register_setting( 'capex_options_group', 'capex_ssokey' );
         register_setting( 'capex_options_group', 'capex_scope_id' );
         register_setting( 'capex_options_group', 'capex_redirect_handler' );
     }
@@ -408,22 +410,43 @@ class Capex_Admin {
                 <?php do_settings_sections( 'capex_options_group' ); ?>
                 <table class="form-table">
                     <tr valign="top">
+                        <th scope="row">გარემო (Environment)</th>
+                        <td>
+                            <?php $env = get_option( 'capex_environment', 'test' ); ?>
+                            <select name="capex_environment">
+                                <option value="test" <?php selected( $env, 'test' ); ?>>TEST (sso-test.mycreditinfo.ge)</option>
+                                <option value="live" <?php selected( $env, 'live' ); ?>>LIVE (sso.mycreditinfo.ge)</option>
+                            </select>
+                            <p class="description">ტესტირება დაასრულეთ TEST გარემოზე. LIVE-ზე გადართეთ მხოლოდ CreditInfo-ს დასტურის შემდეგ.</p>
+                        </td>
+                    </tr>
+                    <tr valign="top">
                         <th scope="row">Client ID</th>
-                        <td><input type="text" name="capex_client_id" value="<?php echo esc_attr( get_option('capex_client_id') ); ?>" class="regular-text" /></td>
+                        <td>
+                            <input type="text" name="capex_client_id" value="<?php echo esc_attr( get_option('capex_client_id') ); ?>" class="regular-text" />
+                            <p class="description">მაგ: <code>capitalexpress.ge</code></p>
+                        </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Client Secret</th>
                         <td><input type="password" name="capex_client_secret" value="<?php echo esc_attr( get_option('capex_client_secret') ); ?>" class="regular-text" /></td>
                     </tr>
                     <tr valign="top">
+                        <th scope="row">SSO Key</th>
+                        <td>
+                            <input type="password" name="capex_ssokey" value="<?php echo esc_attr( get_option('capex_ssokey') ); ?>" class="regular-text" />
+                            <p class="description">API Gateway-ს საიდუმლო გასაღები (<code>ssokey</code> header). TEST და LIVE გარემოებში სხვადასხვაა.</p>
+                        </td>
+                    </tr>
+                    <tr valign="top">
                         <th scope="row">Scope ID</th>
                         <td>
-                            <input type="text" name="capex_scope_id" value="<?php echo esc_attr( get_option('capex_scope_id') ); ?>" class="regular-text" placeholder="მაგ: scope1" />
+                            <input type="text" name="capex_scope_id" value="<?php echo esc_attr( get_option('capex_scope_id') ); ?>" class="regular-text" />
                             <p class="description">Scope ID, რომელიც MyCreditinfo-მ გადმოგცათ რეგისტრაციისას.</p>
                         </td>
                     </tr>
                     <tr valign="top">
-                        <th scope="row">Redirect Handler URL (ტექნიკური გვერდი)</th>
+                        <th scope="row">Redirect Handler URL</th>
                         <td>
                             <input type="text" name="capex_redirect_handler" value="<?php echo esc_attr( get_option('capex_redirect_handler') ); ?>" class="regular-text" />
                             <p class="description">

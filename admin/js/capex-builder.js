@@ -28,14 +28,16 @@ jQuery(document).ready(function($) {
 
     const ssoOptions = {
         '': '— არაფერი —',
-        'name': 'სახელი (Name)',
-        'surname': 'გვარი (Surname)',
-        'pid': 'პირადი ნომერი / საიდენტიფიკაციო (Username)',
-        'phone': 'ტელეფონი',
-        'email': 'ელ-ფოსტა',
-        'address': 'მისამართი',
-        'dob': 'დაბადების თარიღი',
-        'country': 'ქვეყანა (Country)'
+        'customer_type': 'ტიპი: ფიზიკური/იურიდიული (PERSON/COMPANY)',
+        'name': 'სახელი / კომპანიის სახელი (first_name)',
+        'surname': 'გვარი (last_name) — მხოლოდ ფიზიკური პირი',
+        'pid': 'პირადი ნომერი / საიდენტიფიკაციო (username)',
+        'phone': 'ტელეფონი (mobile_number)',
+        'email': 'ელ-ფოსტა (email)',
+        'address': 'მისამართი (address)',
+        'dob': 'დაბადების თარიღი (birthdate)',
+        'establishment_date': 'დაფუძნების თარიღი (establishment_date) — კომპანია',
+        'country': 'ქვეყანა (country)'
     };
 
     initBuilder();
