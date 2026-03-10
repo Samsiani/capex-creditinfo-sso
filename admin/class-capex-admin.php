@@ -395,6 +395,7 @@ class Capex_Admin {
     public function register_settings() {
         register_setting( 'capex_options_group', 'capex_client_id' );
         register_setting( 'capex_options_group', 'capex_client_secret' );
+        register_setting( 'capex_options_group', 'capex_scope_id' );
         register_setting( 'capex_options_group', 'capex_redirect_handler' );
     }
 
@@ -413,6 +414,13 @@ class Capex_Admin {
                     <tr valign="top">
                         <th scope="row">Client Secret</th>
                         <td><input type="password" name="capex_client_secret" value="<?php echo esc_attr( get_option('capex_client_secret') ); ?>" class="regular-text" /></td>
+                    </tr>
+                    <tr valign="top">
+                        <th scope="row">Scope ID</th>
+                        <td>
+                            <input type="text" name="capex_scope_id" value="<?php echo esc_attr( get_option('capex_scope_id') ); ?>" class="regular-text" placeholder="მაგ: scope1" />
+                            <p class="description">Scope ID, რომელიც MyCreditinfo-მ გადმოგცათ რეგისტრაციისას.</p>
+                        </td>
                     </tr>
                     <tr valign="top">
                         <th scope="row">Redirect Handler URL (ტექნიკური გვერდი)</th>

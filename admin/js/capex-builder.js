@@ -30,11 +30,12 @@ jQuery(document).ready(function($) {
         '': '— არაფერი —',
         'name': 'სახელი (Name)',
         'surname': 'გვარი (Surname)',
-        'pid': 'პირადი ნომერი (ID)',
+        'pid': 'პირადი ნომერი / საიდენტიფიკაციო (Username)',
         'phone': 'ტელეფონი',
         'email': 'ელ-ფოსტა',
         'address': 'მისამართი',
-        'dob': 'დაბადების თარიღი'
+        'dob': 'დაბადების თარიღი',
+        'country': 'ქვეყანა (Country)'
     };
 
     initBuilder();

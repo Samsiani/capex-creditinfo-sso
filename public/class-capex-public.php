@@ -14,50 +14,90 @@ class Capex_Public {
         add_shortcode( 'capex_sso_handler', array( $this, 'render_sso_handler_shortcode' ) );
         add_action( 'wp_ajax_capex_submit_application', array( $this, 'handle_submit_application' ) );
         add_action( 'wp_ajax_nopriv_capex_submit_application', array( $this, 'handle_submit_application' ) );
-        
+
         if ( class_exists( 'Capex_SSO' ) ) {
             $this->sso_engine = new Capex_SSO();
         }
     }
 
     public function enqueue_assets() {
-        wp_register_style( 'capex-front-css', CAPEX_PLUGIN_URL . 'public/css/capex-front.css', array(), time() );
-        wp_register_script( 'capex-front-js', CAPEX_PLUGIN_URL . 'public/js/capex-front.js', array( 'jquery' ), time(), true );
-        
+        wp_register_style( 'capex-front-css', CAPEX_PLUGIN_URL . 'public/css/capex-front.css', array(), CAPEX_VERSION );
+        wp_register_script( 'capex-front-js', CAPEX_PLUGIN_URL . 'public/js/capex-front.js', array( 'jquery' ), CAPEX_VERSION, true );
+
         wp_localize_script( 'capex-front-js', 'capex_obj', array(
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce'    => wp_create_nonce( 'capex_form_nonce' )
         ));
     }
 
+    /**
+     * SSO callback handler shortcode.
+     *
+     * MyCreditinfo redirects here with ?code=...&session_state=...
+     * If state param was sent in the authorize URL, it comes back as ?state=...
+     * On failure, the SSO redirects to redirect_url/failed
+     */
     public function render_sso_handler_shortcode() {
-        if ( ! isset( $_GET['code'] ) || ! isset( $_GET['state'] ) ) return '';
-
-        $return_url = $this->sso_engine->validate_state_and_get_url( $_GET['state'] );
-        if ( ! $return_url ) return '<div style="color:red; border:1px solid red; padding:10px;">სესია ვადაგასულია.</div>';
-
-        $token = $this->sso_engine->exchange_code_for_token( $_GET['code'] );
-        if ( $token ) {
-            $user_data = $this->sso_engine->get_user_info( $token );
-            if ( $user_data ) {
-                if(!isset($_COOKIE['capex_session_id'])) {
-                    $session_id = md5(uniqid(rand(), true));
-                    setcookie('capex_session_id', $session_id, time() + 3600, '/');
-                } else {
-                    $session_id = $_COOKIE['capex_session_id'];
-                }
-                set_transient( 'capex_user_data_' . $session_id, $user_data, 5 * MINUTE_IN_SECONDS );
-                echo '<script>window.location.href = "' . esc_url($return_url) . '";</script>';
-                exit;
-            }
+        // Handle failed SSO auth — MyCreditinfo appends /failed to redirect_url
+        $request_uri = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '';
+        if ( preg_match( '#/failed\b#i', $request_uri ) ) {
+            return '<div style="color:#d63638; border:1px solid #d63638; padding:15px; border-radius:6px; margin:20px 0;">'
+                 . '<strong>ავტორიზაცია ვერ მოხერხდა.</strong> გთხოვთ სცადოთ თავიდან ან შეავსეთ ფორმა ხელით.'
+                 . '</div>';
         }
-        return '<div style="color:red;">ავტორიზაციის შეცდომა.</div>';
+
+        if ( ! isset( $_GET['code'] ) ) {
+            return '';
+        }
+
+        // SSO may return state (standard OAuth2) or session_state (MyCreditinfo specific)
+        $state = isset( $_GET['state'] ) ? $_GET['state'] : '';
+
+        if ( ! empty( $state ) ) {
+            $return_url = $this->sso_engine->validate_state_and_get_url( $state );
+            if ( ! $return_url ) {
+                return '<div style="color:#d63638; border:1px solid #d63638; padding:15px; border-radius:6px; margin:20px 0;">'
+                     . 'სესია ვადაგასულია. გთხოვთ სცადოთ თავიდან.'
+                     . '</div>';
+            }
+        } else {
+            // No state param — fall back to HTTP referer or home
+            $return_url = wp_get_referer() ? wp_get_referer() : home_url( '/' );
+        }
+
+        $token = $this->sso_engine->exchange_code_for_token( sanitize_text_field( $_GET['code'] ) );
+        if ( ! $token ) {
+            return '<div style="color:#d63638; border:1px solid #d63638; padding:15px; border-radius:6px; margin:20px 0;">'
+                 . 'ავტორიზაციის შეცდომა. ტოკენის მიღება ვერ მოხერხდა.'
+                 . '</div>';
+        }
+
+        $user_data = $this->sso_engine->get_user_info( $token );
+        if ( ! $user_data ) {
+            return '<div style="color:#d63638; border:1px solid #d63638; padding:15px; border-radius:6px; margin:20px 0;">'
+                 . 'ავტორიზაციის შეცდომა. მომხმარებლის მონაცემები ვერ მოიძებნა.'
+                 . '</div>';
+        }
+
+        // Store SSO data in transient, keyed by session cookie
+        if ( ! isset( $_COOKIE['capex_session_id'] ) ) {
+            $session_id = wp_generate_password( 32, false );
+            setcookie( 'capex_session_id', $session_id, time() + 3600, '/', '', is_ssl(), true );
+        } else {
+            $session_id = sanitize_text_field( $_COOKIE['capex_session_id'] );
+        }
+
+        set_transient( 'capex_user_data_' . $session_id, $user_data, 5 * MINUTE_IN_SECONDS );
+
+        // Redirect to the form page
+        echo '<script>window.location.href = ' . wp_json_encode( esc_url( $return_url ) ) . ';</script>';
+        exit;
     }
 
     public function render_form_shortcode( $atts ) {
         $atts = shortcode_atts( array( 'id' => 0 ), $atts );
         $form_id = intval( $atts['id'] );
-        
+
         if ( ! $form_id ) return '<p style="color:red;">ფორმა ID მითითებული არ არის.</p>';
 
         $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
@@ -71,24 +111,25 @@ class Capex_Public {
         wp_enqueue_script( 'capex-front-js' );
 
         $prefill_data = array();
-        if(isset($_COOKIE['capex_session_id'])) {
-            $session_id = $_COOKIE['capex_session_id'];
+        if ( isset( $_COOKIE['capex_session_id'] ) ) {
+            $session_id  = sanitize_text_field( $_COOKIE['capex_session_id'] );
             $cached_data = get_transient( 'capex_user_data_' . $session_id );
-            if($cached_data) {
+            if ( $cached_data ) {
                 $prefill_data = $cached_data;
                 delete_transient( 'capex_user_data_' . $session_id );
             }
         }
 
-        $current_url = "http://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
-        $sso_url = $this->sso_engine->get_auth_url( $current_url );
+        // Build current page URL (HTTPS-aware)
+        $current_url = set_url_scheme( home_url( $_SERVER['REQUEST_URI'] ) );
+        $sso_url     = $this->sso_engine ? $this->sso_engine->get_auth_url( $current_url ) : false;
 
         ob_start();
         ?>
-        <div class="capex-form-wrapper" data-form-id="<?php echo $form_id; ?>">
-            
+        <div class="capex-form-wrapper" data-form-id="<?php echo esc_attr( $form_id ); ?>">
+
             <div id="capex-error-box" class="cx-error-summary" style="display:none;">
-                <div class="cx-error-title">⚠️ ყურადღება!</div>
+                <div class="cx-error-title">&#9888;&#65039; ყურადღება!</div>
                 <ul id="capex-error-list"></ul>
             </div>
 
@@ -101,17 +142,17 @@ class Capex_Public {
             </div>
 
             <form class="capex-loan-form" enctype="multipart/form-data" novalidate>
-                <input type="hidden" name="form_id" value="<?php echo $form_id; ?>">
-                
-                <?php foreach($structure as $index => $step): 
+                <input type="hidden" name="form_id" value="<?php echo esc_attr( $form_id ); ?>">
+
+                <?php foreach($structure as $index => $step):
                     $step_num = $index + 1;
                     $is_active = ($index === 0) ? 'active' : '';
                 ?>
                     <div class="form-step <?php echo $is_active; ?>" id="step-<?php echo $step_num; ?>" data-step="<?php echo $step_num; ?>">
-                        
+
                         <?php if($index === 0): ?>
                             <?php if(!empty($prefill_data)): ?>
-                                <div class="cx-success-msg">✔ მონაცემები მიღებულია Creditinfo-დან</div>
+                                <div class="cx-success-msg">&#10004; მონაცემები მიღებულია Creditinfo-დან</div>
                             <?php elseif($sso_url): ?>
                                 <a href="<?php echo esc_url($sso_url); ?>" class="btn-creditinfo">
                                     MyCreditinfo ავტორიზაცია
@@ -119,11 +160,11 @@ class Capex_Public {
                                 <div class="or-divider">ან შეავსეთ ხელით</div>
                             <?php endif; ?>
                         <?php endif; ?>
-                        
+
                         <div class="cx-fields-row">
-                            <?php 
+                            <?php
                             if(!empty($step['fields'])):
-                                foreach($step['fields'] as $field): 
+                                foreach($step['fields'] as $field):
                                     $this->render_field($field, $prefill_data);
                                 endforeach;
                             endif;
@@ -161,20 +202,17 @@ class Capex_Public {
         $id = isset($field['id']) ? $field['id'] : uniqid('f_');
         $label = isset($field['label']) ? $field['label'] : '';
         $type = isset($field['type']) ? $field['type'] : 'text';
-        $width = isset($field['width']) ? $field['width'] : '100'; 
+        $width = isset($field['width']) ? $field['width'] : '100';
         $required = !empty($field['required']) ? 'required' : '';
         $sso_map = isset($field['sso_map']) ? $field['sso_map'] : '';
         $html_content = isset($field['html_content']) ? $field['html_content'] : '';
-        
-        // პარამეტრები
+
         $checkbox_label = !empty($field['html_checkbox_label']) ? $field['html_checkbox_label'] : 'გავეცანი და ვეთანხმები';
-        $auto_height = !empty($field['html_auto_height']) ? 'auto-height' : ''; 
+        $auto_height = !empty($field['html_auto_height']) ? 'auto-height' : '';
         $max_length = !empty($field['max_length']) ? 'maxlength="'.intval($field['max_length']).'"' : '';
-        
-        // მხოლოდ ციფრების ლოგიკა
+
         $numbers_only_attr = '';
         if(!empty($field['numbers_only'])) {
-            // oninput: შლის არა-ციფრებს, inputmode: მობილურზე ციფრულ კლავიატურას ხსნის
             $numbers_only_attr = 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')" inputmode="numeric" pattern="\d*"';
         }
 
@@ -191,30 +229,30 @@ class Capex_Public {
         }
 
         // Autofill Mapping
-        $autocomplete = 'autocomplete="off"'; // Default to off or generic
+        $autocomplete = 'autocomplete="on"';
         switch($sso_map) {
-            case 'name': $autocomplete = 'autocomplete="given-name"'; break;
+            case 'name':    $autocomplete = 'autocomplete="given-name"'; break;
             case 'surname': $autocomplete = 'autocomplete="family-name"'; break;
-            case 'email': $autocomplete = 'autocomplete="email"'; break;
-            case 'phone': $autocomplete = 'autocomplete="tel"'; break;
+            case 'email':   $autocomplete = 'autocomplete="email"'; break;
+            case 'phone':   $autocomplete = 'autocomplete="tel"'; break;
             case 'address': $autocomplete = 'autocomplete="street-address"'; break;
-            case 'dob': $autocomplete = 'autocomplete="bday"'; break;
-            default: $autocomplete = 'autocomplete="on"'; break; // თუ SSO არ არის, ჩვეულებრივი Autofill
+            case 'dob':     $autocomplete = 'autocomplete="bday"'; break;
+            case 'country': $autocomplete = 'autocomplete="country"'; break;
         }
 
         $col_class = 'cx-col-' . esc_attr($width);
 
         echo '<div id="container_'.esc_attr($id).'" class="form-group ' . $col_class . ' field-type-'.esc_attr($type).'" '.$logic_attr.'>';
-        
+
         if ($type === 'html') {
              echo '<label class="form-label">'.esc_html($label).' <span class="required">*</span></label>';
              echo '<div class="legal-scroll-box '.esc_attr($auto_height).'">' . wp_kses_post($html_content) . '</div>';
              echo '<label class="checkbox-label"><input type="checkbox" name="'.esc_attr($id).'" value="1" '.$required.'> '.esc_html($checkbox_label).'</label>';
-        } 
+        }
         elseif ($type === 'file') {
              echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').'</label>';
              echo '<div class="file-drop-area" onclick="document.getElementById(\''.esc_attr($id).'\').click()">';
-             echo '<span style="font-size:24px;">📂</span> <span class="file-msg">აირჩიეთ ფაილი</span>';
+             echo '<span style="font-size:24px;">&#128194;</span> <span class="file-msg">აირჩიეთ ფაილი</span>';
              echo '<input type="file" id="'.esc_attr($id).'" name="'.esc_attr($id).'[]" multiple hidden>';
              echo '</div>';
              echo '<div class="file-list-display" id="display_'.esc_attr($id).'"></div>';
@@ -236,7 +274,8 @@ class Capex_Public {
              echo '<option value="">- აირჩიეთ -</option>';
              if(!empty($field['options'])) {
                  foreach($field['options'] as $opt) {
-                     echo '<option value="'.esc_attr($opt['value']).'">'.esc_html($opt['label']).'</option>';
+                     $selected = ($value === $opt['value']) ? 'selected' : '';
+                     echo '<option value="'.esc_attr($opt['value']).'" '.$selected.'>'.esc_html($opt['label']).'</option>';
                  }
              }
              echo '</select>';
@@ -254,8 +293,7 @@ class Capex_Public {
              $extra_class = '';
              if($sso_map == 'name') $extra_class = 'cx-input-name';
              if($sso_map == 'surname') $extra_class = 'cx-input-surname';
-             
-             // ვამატებთ ახალ ატრიბუტებს: maxlength, inputmode, oninput
+
              echo '<input type="'.esc_attr($type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control '.esc_attr($extra_class).'" value="'.$value.'" '.$required.' '.$autocomplete.' '.$max_length.' '.$numbers_only_attr.'>';
         }
         echo '</div>';
@@ -317,7 +355,7 @@ class Capex_Public {
                     }
                 }
             }
-        } 
+        }
         return $saved_files;
     }
 }

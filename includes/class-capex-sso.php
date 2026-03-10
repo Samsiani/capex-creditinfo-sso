@@ -13,12 +13,14 @@ class Capex_SSO {
 
     private $client_id;
     private $client_secret;
-    private $redirect_handler; // ეს არის ტექნიკური URL, რომელიც Creditinfo-შია გაწერილი
+    private $redirect_handler;
+    private $scope_id;
 
     public function __construct() {
         $this->client_id        = get_option( 'capex_client_id' );
         $this->client_secret    = get_option( 'capex_client_secret' );
-        $this->redirect_handler = get_option( 'capex_redirect_handler' ); // განახლებული სეთინგი
+        $this->redirect_handler = get_option( 'capex_redirect_handler' );
+        $this->scope_id         = get_option( 'capex_scope_id', '' );
     }
 
     /**
@@ -26,30 +28,24 @@ class Capex_SSO {
      * @param string $return_url - გვერდი, სადაც მომხმარებელი უნდა დაბრუნდეს (მაგ: /auto-loan)
      */
     public function get_auth_url( $return_url ) {
-        if ( empty( $this->client_id ) || empty( $this->redirect_handler ) ) {
+        if ( empty( $this->client_id ) || empty( $this->redirect_handler ) || empty( $this->scope_id ) ) {
             return false;
         }
 
-        // ვქმნით უნიკალურ Nonce-ს უსაფრთხოებისთვის
         $nonce = wp_create_nonce( 'capex_sso_nonce' );
 
-        // State-ში ვწერთ: NONCE + გამყოფი + დასაბრუნებელი მისამართი
-        // მაგ: "a1b2c3d4|https://capexcredit.ge/auto-loan/"
-        // ამას ვაკოდირებთ Base64-ში, რომ URL-ში ლამაზად ჩაჯდეს
-        $state_data = $nonce . '|' . $return_url;
+        // State: NONCE|return_url, encoded in base64
+        $state_data    = $nonce . '|' . $return_url;
         $state_encoded = base64_encode( $state_data );
 
-        // ვინახავთ დროებით მეხსიერებაში (Transient) 10 წუთით
+        // Store nonce → return_url for 10 min (replay protection)
         set_transient( 'capex_sso_' . $nonce, $return_url, 10 * MINUTE_IN_SECONDS );
 
-        $scope = 'openid profile email phone address'; 
-
         $params = array(
-            'client_id'     => $this->client_id,
-            'redirect_uri'  => $this->redirect_handler, // ეს მუდმივია (რაც Creditinfo-მ იცის)
-            'response_type' => 'code',
-            'scope'         => $scope,
-            'state'         => $state_encoded // აქ არის ჩამალული რეალური მარშრუტი
+            'client_id'    => $this->client_id,
+            'redirect_uri' => $this->redirect_handler,
+            'scope'        => $this->scope_id,           // Scope ID from MyCreditinfo (e.g. "scope1")
+            'state'        => $state_encoded,
         );
 
         return $this->auth_endpoint . '?' . http_build_query( $params );
@@ -57,24 +53,21 @@ class Capex_SSO {
 
     /**
      * 2. State-ის გაშიფრვა და ვალიდაცია
-     * ეს მეთოდი გვეუბნება, სად უნდა გადავამისამართოთ მომხმარებელი საბოლოოდ
      */
     public function validate_state_and_get_url( $state_encoded ) {
         $state_decoded = base64_decode( $state_encoded );
-        $parts = explode( '|', $state_decoded );
+        $parts = explode( '|', $state_decoded, 2 );
 
         if ( count( $parts ) < 2 ) {
             return false;
         }
 
-        $nonce = $parts[0];
+        $nonce      = $parts[0];
         $return_url = $parts[1];
 
-        // ვამოწმებთ, არსებობს თუ არა ეს Nonce ჩვენს ბაზაში (Valid & Not Expired)
         $saved_url = get_transient( 'capex_sso_' . $nonce );
 
         if ( $saved_url && $saved_url === $return_url ) {
-            // გამოყენების შემდეგ ვშლით (Replay Attack Protection)
             delete_transient( 'capex_sso_' . $nonce );
             return $return_url;
         }
@@ -89,7 +82,7 @@ class Capex_SSO {
         $body = array(
             'grant_type'    => 'authorization_code',
             'code'          => $code,
-            'redirect_uri'  => $this->redirect_handler, // აქაც იგივე ტექნიკური URL უნდა იყოს
+            'redirect_uri'  => $this->redirect_handler,
             'client_id'     => $this->client_id,
             'client_secret' => $this->client_secret,
         );
@@ -129,7 +122,7 @@ class Capex_SSO {
         }
 
         $user_data = json_decode( wp_remote_retrieve_body( $response ), true );
-        
+
         if ( ! empty( $user_data ) && ! isset( $user_data['error'] ) ) {
             return $this->map_user_data( $user_data );
         }
@@ -138,17 +131,30 @@ class Capex_SSO {
     }
 
     /**
-     * მონაცემების გადათარგმნა ჩვენს ფორმატში
+     * Map CreditInfo API response to our internal field keys.
+     *
+     * API response example (per docs):
+     * {
+     *   "sub": "51dc84a3-...",          // UUID — session/user identifier
+     *   "firstName": "name",
+     *   "lastName": "lastName",
+     *   "country": "GE",
+     *   "birthdate": "2003-09-20",
+     *   "address": "address",
+     *   "email": "name@gmail.com",
+     *   "username": "00000000000"        // Personal ID number / Tax number
+     * }
      */
     private function map_user_data( $api_data ) {
         return array(
-            'name'      => isset($api_data['firstName']) ? $api_data['firstName'] : '',
-            'surname'   => isset($api_data['lastName']) ? $api_data['lastName'] : '',
-            'pid'       => isset($api_data['sub']) ? $api_data['sub'] : '', 
-            'dob'       => isset($api_data['birthdate']) ? $api_data['birthdate'] : '',
-            'email'     => isset($api_data['email']) ? $api_data['email'] : '',
-            'phone'     => isset($api_data['phone']) ? $api_data['phone'] : '',
-            'address'   => isset($api_data['address']) ? $api_data['address'] : '',
+            'name'     => $api_data['firstName'] ?? '',
+            'surname'  => $api_data['lastName']  ?? '',
+            'pid'      => $api_data['username']  ?? '',   // Personal ID = username field
+            'dob'      => $api_data['birthdate'] ?? '',
+            'email'    => $api_data['email']     ?? '',
+            'phone'    => $api_data['phone']     ?? '',
+            'address'  => $api_data['address']   ?? '',
+            'country'  => $api_data['country']   ?? '',
         );
     }
 }
