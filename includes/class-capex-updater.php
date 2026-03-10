@@ -51,9 +51,14 @@ class Capex_Updater {
     }
 
     private function register_hooks() {
+        // Inject update data into WordPress update check.
         add_filter( 'pre_set_site_transient_update_plugins', [ $this, 'check_for_update' ] );
+        // Provide plugin info for "View version details" modal.
         add_filter( 'plugins_api',                          [ $this, 'plugin_info'       ], 10, 3 );
+        // Purge cache after plugin upgrade completes.
         add_action( 'upgrader_process_complete',            [ $this, 'purge_transient'   ], 10, 2 );
+        // Purge cache when "Check Again" is clicked (deletes update_plugins site transient).
+        add_action( 'delete_site_transient_update_plugins', [ $this, 'purge_github_cache' ] );
     }
 
     /**
@@ -208,5 +213,14 @@ class Capex_Updater {
         if ( in_array( $this->plugin_slug, $updated, true ) ) {
             delete_transient( $this->transient_key );
         }
+    }
+
+    /**
+     * `delete_site_transient_update_plugins` callback.
+     * Fires when WordPress clears its update check cache (e.g. "Check Again" button).
+     * Purges our GitHub API cache so the next check fetches fresh data.
+     */
+    public function purge_github_cache() {
+        delete_transient( $this->transient_key );
     }
 }
