@@ -341,11 +341,90 @@ class Capex_Public {
             if ( empty( $notify_email ) ) {
                 $notify_email = get_option( 'admin_email' );
             }
-            wp_mail( $notify_email, 'ახალი განაცხადი', 'ახალი განაცხადი შემოვიდა.' );
+
+            $email_body = $this->build_entry_email( $form_id, $entry_data, $post_id );
+            $email_subject = 'ახალი განაცხადი — ' . get_the_title( $form_id ) . ' (#' . $post_id . ')';
+            $headers = array( 'Content-Type: text/html; charset=UTF-8' );
+            wp_mail( $notify_email, $email_subject, $email_body, $headers );
             wp_send_json_success();
         } else {
             wp_send_json_error( array( 'message' => 'DB Error' ) );
         }
+    }
+
+    private function build_entry_email( $form_id, $entry_data, $post_id ) {
+        $form_title = get_the_title( $form_id );
+        $date       = current_time( 'Y-m-d H:i:s' );
+        $edit_url   = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+
+        $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
+        $structure      = json_decode( $structure_json, true );
+
+        $rows_html = '';
+
+        if ( ! empty( $structure ) && is_array( $structure ) ) {
+            foreach ( $structure as $step_index => $step ) {
+                if ( empty( $step['fields'] ) ) continue;
+
+                $step_rows = '';
+                foreach ( $step['fields'] as $field ) {
+                    $id    = isset( $field['id'] ) ? $field['id'] : '';
+                    $label = isset( $field['label'] ) ? $field['label'] : '';
+                    $type  = isset( $field['type'] ) ? $field['type'] : 'text';
+                    $value = isset( $entry_data[ $id ] ) ? $entry_data[ $id ] : '';
+
+                    if ( $type === 'html' ) {
+                        $value = '&#10004; დადასტურებულია';
+                    } elseif ( $type === 'file' ) {
+                        if ( is_array( $value ) && ! empty( $value ) ) {
+                            $links = array();
+                            foreach ( $value as $url ) {
+                                $links[] = '<a href="' . esc_url( $url ) . '">გახსნა</a>';
+                            }
+                            $value = implode( ', ', $links );
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        if ( empty( $value ) || $value === '-' ) continue;
+                        $value = esc_html( $value );
+                    }
+
+                    $step_rows .= '<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;color:#555;font-weight:600;width:40%;">' . esc_html( $label ) . '</td>';
+                    $step_rows .= '<td style="padding:8px 12px;border-bottom:1px solid #eee;color:#1d2327;">' . $value . '</td></tr>';
+                }
+
+                if ( ! empty( $step_rows ) ) {
+                    $rows_html .= '<tr><td colspan="2" style="padding:10px 12px;background:#f0f0f1;font-weight:bold;font-size:14px;border-left:4px solid #0073aa;">ნაბიჯი ' . ( $step_index + 1 ) . '</td></tr>';
+                    $rows_html .= $step_rows;
+                }
+            }
+        }
+
+        $html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#f5f5f5;">';
+        $html .= '<div style="max-width:600px;margin:20px auto;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">';
+
+        // Header
+        $html .= '<div style="background:#0073aa;padding:20px 25px;color:#fff;">';
+        $html .= '<h1 style="margin:0;font-size:20px;">ახალი განაცხადი</h1>';
+        $html .= '<p style="margin:8px 0 0;font-size:13px;opacity:0.9;">ფორმა: ' . esc_html( $form_title ) . ' | დრო: ' . $date . '</p>';
+        $html .= '</div>';
+
+        // Body
+        $html .= '<div style="padding:20px 25px;">';
+        $html .= '<table style="width:100%;border-collapse:collapse;font-size:14px;">';
+        $html .= $rows_html;
+        $html .= '</table>';
+        $html .= '</div>';
+
+        // Footer
+        $html .= '<div style="padding:15px 25px;background:#f9f9f9;border-top:1px solid #eee;font-size:13px;text-align:center;">';
+        $html .= '<a href="' . esc_url( $edit_url ) . '" style="color:#0073aa;text-decoration:none;font-weight:600;">ნახვა ადმინ პანელში &rarr;</a>';
+        $html .= '</div>';
+
+        $html .= '</div></body></html>';
+
+        return $html;
     }
 
     private function handle_secure_upload( $file_array ) {
