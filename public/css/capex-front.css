@@ -289,11 +289,10 @@
 /* --- Creditinfo ღილაკი (inline compact) --- */
 .cx-sso-row {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 12px;
+    gap: 8px;
     margin-bottom: 20px;
-    flex-wrap: wrap;
 }
 
 .btn-creditinfo {
