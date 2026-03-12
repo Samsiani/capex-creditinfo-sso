@@ -43,6 +43,9 @@ class Capex_SSO {
 
         set_transient( 'capex_sso_' . $nonce, $return_url, 10 * MINUTE_IN_SECONDS );
 
+        // Save return URL in transient as fallback (MyCreditinfo may not return state param)
+        set_transient( 'capex_sso_return_url', $return_url, 10 * MINUTE_IN_SECONDS );
+
         // Per MyCreditinfo spec: client_id, redirect_uri, scope only
         $params = array(
             'client_id'    => $this->client_id,
@@ -96,22 +99,35 @@ class Capex_SSO {
             'client_secret' => $this->client_secret,
         );
 
-        $response = wp_remote_post( $this->base_url . '/token', array(
+        $token_url = $this->base_url . '/token';
+
+        error_log( '[CAPEX SSO] Token request URL: ' . $token_url );
+        error_log( '[CAPEX SSO] Token request body: ' . wp_json_encode( $body ) );
+
+        $response = wp_remote_post( $token_url, array(
             'body'    => $body,
             'headers' => $headers,
             'timeout' => 15,
         ) );
 
         if ( is_wp_error( $response ) ) {
+            error_log( '[CAPEX SSO] WP Error: ' . $response->get_error_message() );
             return false;
         }
 
-        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        $http_code = wp_remote_retrieve_response_code( $response );
+        $raw_body  = wp_remote_retrieve_body( $response );
+
+        error_log( '[CAPEX SSO] Token response HTTP ' . $http_code . ': ' . $raw_body );
+
+        $data = json_decode( $raw_body, true );
 
         if ( isset( $data['access_token'] ) ) {
+            error_log( '[CAPEX SSO] Token obtained successfully' );
             return $data['access_token'];
         }
 
+        error_log( '[CAPEX SSO] Token exchange failed — no access_token in response' );
         return false;
     }
 

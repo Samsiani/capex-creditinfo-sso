@@ -61,8 +61,14 @@ class Capex_Public {
                      . '</div>';
             }
         } else {
-            // No state param — fall back to HTTP referer or home
-            $return_url = wp_get_referer() ? wp_get_referer() : home_url( '/' );
+            // No state param — MyCreditinfo doesn't return it. Use saved transient.
+            $saved_return = get_transient( 'capex_sso_return_url' );
+            if ( $saved_return ) {
+                delete_transient( 'capex_sso_return_url' );
+                $return_url = $saved_return;
+            } else {
+                $return_url = wp_get_referer() ? wp_get_referer() : home_url( '/' );
+            }
         }
 
         $token = $this->sso_engine->exchange_code_for_token( sanitize_text_field( $_GET['code'] ) );
