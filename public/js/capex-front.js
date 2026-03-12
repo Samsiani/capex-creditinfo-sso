@@ -343,6 +343,24 @@ jQuery(document).ready(function($) {
         formData.append('action', 'capex_submit_application');
         formData.append('security', capex_obj.nonce);
 
+        // Replace radio values with their labels
+        $form.find('input[type="radio"]:checked').each(function() {
+            var name = $(this).attr('name');
+            var labelText = $(this).closest('label').text().trim();
+            if (labelText) {
+                formData.set(name, labelText);
+            }
+        });
+
+        // Replace select values with their visible text
+        $form.find('select').each(function() {
+            var name = $(this).attr('name');
+            var selectedText = $(this).find('option:selected').text().trim();
+            if (selectedText && selectedText !== '- აირჩიეთ -') {
+                formData.set(name, selectedText);
+            }
+        });
+
         $.ajax({
             url: capex_obj.ajax_url,
             type: 'POST',

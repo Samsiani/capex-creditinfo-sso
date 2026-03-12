@@ -171,28 +171,33 @@ class Capex_Admin {
                     $id    = isset($field['id']) ? $field['id'] : '';
                     
                     // მნიშვნელობის ამოღება
-                    $value = isset($entry_data[$id]) ? $entry_data[$id] : '-';
+                    $value = isset($entry_data[$id]) ? $entry_data[$id] : '';
+
+                    // ცარიელი ველების გამოტოვება
+                    if ( $type !== 'html' && $type !== 'file' ) {
+                        if ( empty( $value ) || $value === '-' ) {
+                            continue;
+                        }
+                    }
+                    if ( $type === 'file' && ( ! is_array( $value ) || empty( $value ) ) ) {
+                        continue;
+                    }
 
                     echo '<div class="cx-row">';
                     echo '<div class="cx-label">' . esc_html($label) . ':</div>';
                     echo '<div class="cx-val">';
-                    
+
                     // ტიპების მიხედვით გამოტანა
                     if ( $type === 'file' ) {
-                        if(is_array($value)) {
-                            foreach($value as $file_url) {
-                                echo '<a href="'.esc_url($file_url).'" target="_blank" class="cx-file-link">📄 გახსნა</a> ';
-                            }
-                        } else {
-                            echo "ფაილი არ არის";
+                        foreach($value as $file_url) {
+                            echo '<a href="'.esc_url($file_url).'" target="_blank" class="cx-file-link">📄 გახსნა</a> ';
                         }
                     } elseif ( $type === 'html' ) {
-                         // HTML/Consent ტიპის ველებზე ვაჩვენებთ რომ დაეთანხმა
                          echo '<span style="color:green">✔ დადასტურებულია</span>';
                     } else {
                         echo esc_html($value);
                     }
-                    
+
                     echo '</div></div>';
                 }
             }
