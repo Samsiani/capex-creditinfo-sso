@@ -286,49 +286,42 @@
     cursor: not-allowed;
 }
 
-/* --- Creditinfo ღილაკი --- */
+/* --- Creditinfo ღილაკი (inline compact) --- */
+.cx-sso-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
 .btn-creditinfo {
-    display: block;
-    width: 100%;
-    max-width: 250px;
-    margin: 0 auto 20px;
-    background: #f48024;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #c0392b;
     color: #fff;
     text-align: center;
-    padding: 12px;
-    border-radius: 50px;
+    padding: 8px 18px;
+    border-radius: 4px;
     text-decoration: none;
-    font-weight: bold;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    font-weight: 600;
+    font-size: 13px;
+    border: 1px solid #a93226;
+    transition: background 0.2s;
+    white-space: nowrap;
 }
 .btn-creditinfo:hover {
-    background: #e06c0d;
+    background: #a93226;
+    color: #fff;
 }
 
 .or-divider {
-    text-align: center;
-    margin: 15px 0 25px;
-    position: relative;
-    font-size: 14px;
+    font-size: 13px;
     color: #999;
-}
-.or-divider::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    width: 45%;
-    height: 1px;
-    background: #eee;
-}
-.or-divider::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    right: 0;
-    width: 45%;
-    height: 1px;
-    background: #eee;
+    margin: 0;
+    position: relative;
+    padding: 0;
 }
 
 .cx-success-msg {

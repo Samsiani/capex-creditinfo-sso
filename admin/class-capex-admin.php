@@ -146,12 +146,13 @@ class Capex_Admin {
         // 3. წამოვიღოთ შენახული მონაცემები
         $entry_data = get_post_meta( $post->ID, '_capex_entry_data', true ); // ყველა ველის ინფო ერთ მასივში
 
-        echo '<div class="capex-view-wrapper">';
+        echo '<div class="capex-view-wrapper" id="capex-print-area">';
 
-        // სისტემური ინფო
-        echo '<div class="cx-system-info">';
-        echo '<strong>ფორმა:</strong> <a href="'.get_edit_post_link($form_id).'">'.get_the_title($form_id).'</a> | ';
-        echo '<strong>დრო:</strong> ' . get_the_date('Y-m-d H:i:s', $post->ID);
+        // სისტემური ინფო + Print ღილაკი
+        echo '<div class="cx-system-info" style="display:flex; justify-content:space-between; align-items:center;">';
+        echo '<div><strong>ფორმა:</strong> <a href="'.get_edit_post_link($form_id).'">'.get_the_title($form_id).'</a> | ';
+        echo '<strong>დრო:</strong> ' . get_the_date('Y-m-d H:i:s', $post->ID) . '</div>';
+        echo '<button type="button" class="cx-btn cx-btn-primary cx-no-print" onclick="capexPrintEntry()">&#128424; ბეჭდვა</button>';
         echo '</div>';
 
         if ( empty( $structure ) || ! is_array( $structure ) ) {
@@ -198,6 +199,32 @@ class Capex_Admin {
         }
 
         echo '</div>'; // wrapper
+
+        // Print functionality
+        ?>
+        <script>
+        function capexPrintEntry() {
+            var area = document.getElementById('capex-print-area');
+            var win = window.open('', '_blank');
+            win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">');
+            win.document.write('<title><?php echo esc_js( get_the_title( $post->ID ) ); ?></title>');
+            win.document.write('<style>');
+            win.document.write('body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 30px; color: #333; max-width: 800px; margin: 0 auto; }');
+            win.document.write('.cx-system-info { background: #fff8e5; border: 1px solid #f0c33c; padding: 10px; font-size: 12px; margin-bottom: 20px; }');
+            win.document.write('.cx-section-title { background: #f0f0f1; padding: 10px; font-weight: bold; font-size: 14px; margin-top: 25px; border-left: 4px solid #0073aa; }');
+            win.document.write('.cx-row { display: flex; border-bottom: 1px solid #eee; padding: 10px 0; }');
+            win.document.write('.cx-label { width: 250px; font-weight: 600; color: #555; flex-shrink: 0; }');
+            win.document.write('.cx-val { flex-grow: 1; color: #1d2327; }');
+            win.document.write('.cx-no-print { display: none !important; }');
+            win.document.write('a { color: #0073aa; }');
+            win.document.write('</style></head><body>');
+            win.document.write(area.innerHTML);
+            win.document.write('</body></html>');
+            win.document.close();
+            win.onload = function() { win.print(); };
+        }
+        </script>
+        <?php
     }
 
     /**

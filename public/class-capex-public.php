@@ -160,10 +160,10 @@ class Capex_Public {
                             <?php if(!empty($prefill_data)): ?>
                                 <div class="cx-success-msg">&#10004; მონაცემები მიღებულია Creditinfo-დან</div>
                             <?php elseif($sso_url): ?>
-                                <a href="<?php echo esc_url($sso_url); ?>" class="btn-creditinfo">
-                                    MyCreditinfo ავტორიზაცია
-                                </a>
-                                <div class="or-divider">ან შეავსეთ ხელით</div>
+                                <div class="cx-sso-row">
+                                    <a href="<?php echo esc_url($sso_url); ?>" class="btn-creditinfo">MyCreditinfo ავტორიზაცია</a>
+                                    <span class="or-divider">ან შეავსეთ ხელით</span>
+                                </div>
                             <?php endif; ?>
                         <?php endif; ?>
 
