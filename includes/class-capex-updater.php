@@ -59,6 +59,8 @@ class Capex_Updater {
         add_action( 'upgrader_process_complete',            [ $this, 'purge_transient'   ], 10, 2 );
         // Purge cache when "Check Again" is clicked (deletes update_plugins site transient).
         add_action( 'delete_site_transient_update_plugins', [ $this, 'purge_github_cache' ] );
+        // Rename extracted folder to match installed folder (prevents deactivation).
+        add_filter( 'upgrader_source_selection', [ $this, 'fix_source_dir' ], 10, 4 );
     }
 
     /**
@@ -222,5 +224,31 @@ class Capex_Updater {
      */
     public function purge_github_cache() {
         delete_transient( $this->transient_key );
+    }
+
+    /**
+     * Rename the extracted zip folder to match the installed plugin folder.
+     * Without this, WordPress may extract to a different folder name,
+     * causing the plugin to deactivate after update.
+     */
+    public function fix_source_dir( $source, $remote_source, $upgrader, $hook_extra ) {
+        if ( empty( $hook_extra['plugin'] ) || $hook_extra['plugin'] !== $this->plugin_slug ) {
+            return $source;
+        }
+
+        $expected_dir = trailingslashit( $remote_source ) . dirname( $this->plugin_slug ) . '/';
+
+        if ( $source === $expected_dir ) {
+            return $source;
+        }
+
+        if ( is_dir( $source ) ) {
+            $result = rename( rtrim( $source, '/' ), rtrim( $expected_dir, '/' ) );
+            if ( $result ) {
+                return $expected_dir;
+            }
+        }
+
+        return $source;
     }
 }
