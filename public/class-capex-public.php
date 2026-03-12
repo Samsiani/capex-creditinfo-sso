@@ -395,7 +395,6 @@ class Capex_Public {
                 }
 
                 if ( ! empty( $step_rows ) ) {
-                    $rows_html .= '<tr><td colspan="2" style="padding:10px 12px;background:#f0f0f1;font-weight:bold;font-size:14px;border-left:4px solid #0073aa;">ნაბიჯი ' . ( $step_index + 1 ) . '</td></tr>';
                     $rows_html .= $step_rows;
                 }
             }
