@@ -215,7 +215,7 @@ class Capex_Admin {
             win.document.write('.cx-row { display: flex; border-bottom: 1px solid #eee; padding: 10px 0; }');
             win.document.write('.cx-label { width: 250px; font-weight: 600; color: #555; flex-shrink: 0; }');
             win.document.write('.cx-val { flex-grow: 1; color: #1d2327; }');
-            win.document.write('.cx-no-print { display: none !important; }');
+            win.document.write('.cx-no-print, .cx-system-info, .cx-section-title { display: none !important; }');
             win.document.write('a { color: #0073aa; }');
             win.document.write('</style></head><body>');
             win.document.write(area.innerHTML);

@@ -290,6 +290,7 @@
 .cx-sso-row {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
     margin-bottom: 20px;
     flex-wrap: wrap;
