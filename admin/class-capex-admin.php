@@ -431,6 +431,9 @@ class Capex_Admin {
         register_setting( 'capex_options_group', 'capex_ssokey' );
         register_setting( 'capex_options_group', 'capex_scope_id' );
         register_setting( 'capex_options_group', 'capex_redirect_handler' );
+        register_setting( 'capex_options_group', 'capex_notification_email', [
+            'sanitize_callback' => 'sanitize_email',
+        ] );
     }
 
     public function render_settings_page() {
@@ -487,6 +490,13 @@ class Capex_Admin {
                                 3. დააკოპირეთ იმ გვერდის ლინკი და ჩასვით აქ.<br>
                                 4. მიაწოდეთ ეს ლინკი Creditinfo-ს როგორც <strong>Redirect URL</strong>.
                             </p>
+                        </td>
+                    </tr>
+                    <tr valign="top">
+                        <th scope="row">შეტყობინების ელ-ფოსტა</th>
+                        <td>
+                            <input type="email" name="capex_notification_email" value="<?php echo esc_attr( get_option('capex_notification_email') ); ?>" class="regular-text" />
+                            <p class="description">ელ-ფოსტა, სადაც გაიგზავნება შევსებული განაცხადის შეტყობინება. ცარიელის შემთხვევაში გაიგზავნება ადმინის ელ-ფოსტაზე.</p>
                         </td>
                     </tr>
                 </table>

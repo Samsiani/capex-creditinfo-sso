@@ -337,8 +337,11 @@ class Capex_Public {
         if ( $post_id ) {
             update_post_meta( $post_id, '_capex_form_id', $form_id );
             update_post_meta( $post_id, '_capex_entry_data', $entry_data );
-            $admin_email = get_option( 'admin_email' );
-            wp_mail( $admin_email, 'ახალი განაცხადი', 'ახალი განაცხადი შემოვიდა.' );
+            $notify_email = get_option( 'capex_notification_email' );
+            if ( empty( $notify_email ) ) {
+                $notify_email = get_option( 'admin_email' );
+            }
+            wp_mail( $notify_email, 'ახალი განაცხადი', 'ახალი განაცხადი შემოვიდა.' );
             wp_send_json_success();
         } else {
             wp_send_json_error( array( 'message' => 'DB Error' ) );
