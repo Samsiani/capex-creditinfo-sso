@@ -51,8 +51,9 @@ class Capex_Updater {
     }
 
     private function register_hooks() {
-        // Inject update data into WordPress update check.
+        // Inject update data on write (when WP refreshes) AND on read (every page load).
         add_filter( 'pre_set_site_transient_update_plugins', [ $this, 'check_for_update' ] );
+        add_filter( 'site_transient_update_plugins',         [ $this, 'check_for_update' ] );
         // Provide plugin info for "View version details" modal.
         add_filter( 'plugins_api',                          [ $this, 'plugin_info'       ], 10, 3 );
         // Purge cache after plugin upgrade completes.
@@ -71,7 +72,7 @@ class Capex_Updater {
     private function get_latest_release() {
         $cached = get_transient( $this->transient_key );
         if ( false !== $cached ) {
-            return $cached;
+            return 'error' === $cached ? false : $cached;
         }
 
         $api_url = sprintf(
@@ -92,14 +93,14 @@ class Capex_Updater {
 
         $code = wp_remote_retrieve_response_code( $response );
         if ( 200 !== (int) $code ) {
-            set_transient( $this->transient_key, false, 300 );
+            set_transient( $this->transient_key, 'error', 300 );
             return false;
         }
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
 
         if ( ! is_array( $data ) || empty( $data['tag_name'] ) ) {
-            set_transient( $this->transient_key, false, 300 );
+            set_transient( $this->transient_key, 'error', 300 );
             return false;
         }
 
@@ -130,8 +131,8 @@ class Capex_Updater {
      * Inject update info when a newer version is available on GitHub.
      */
     public function check_for_update( $transient ) {
-        if ( empty( $transient->checked ) ) {
-            return $transient;
+        if ( ! is_object( $transient ) ) {
+            $transient = new stdClass();
         }
 
         $release = $this->get_latest_release();
