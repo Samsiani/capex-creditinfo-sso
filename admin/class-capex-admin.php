@@ -36,7 +36,7 @@ class Capex_Admin {
         global $post;
 
         // მხოლოდ capex_form ან capex_entry გვერდებზე
-        if ( ( 'post.php' === $hook || 'post-new.php' === $hook ) ) {
+        if ( ( 'post.php' === $hook || 'post-new.php' === $hook ) && $post ) {
             if ( 'capex_form' === $post->post_type ) {
                 // ბილდერის სტილები და სკრიპტი
                 wp_enqueue_style( 'capex-admin-css', CAPEX_PLUGIN_URL . 'admin/css/capex-admin.css', array(), CAPEX_VERSION );
@@ -263,11 +263,21 @@ class Capex_Admin {
         }
 
         $filename = sanitize_file_name( $_GET['capex_file'] );
-        $upload   = wp_upload_dir();
-        $filepath = $upload['basedir'] . '/capex_secure_docs/' . $filename;
 
-        if ( ! file_exists( $filepath ) ) {
-            wp_die( 'File not found.', 404 );
+        // Prevent path traversal
+        if ( $filename !== basename( $filename ) || strpos( $filename, '..' ) !== false ) {
+            wp_die( 'Invalid filename.', 400 );
+        }
+
+        $upload    = wp_upload_dir();
+        $secure_dir = $upload['basedir'] . '/capex_secure_docs/';
+        $filepath   = $secure_dir . $filename;
+
+        // Verify resolved path stays within secure directory
+        $real_path   = realpath( $filepath );
+        $real_secure = realpath( $secure_dir );
+        if ( false === $real_path || false === $real_secure || strpos( $real_path, $real_secure ) !== 0 ) {
+            wp_die( 'Access denied.', 403 );
         }
 
         $mime = wp_check_filetype( $filename );

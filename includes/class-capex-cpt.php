@@ -6,6 +6,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Capex_CPT {
 
+    private $form_structure_cache = array();
+    private $entry_counts_cache = null;
+
     public function init() {
         add_action( 'init', array( $this, 'register_forms_cpt' ) );
         add_action( 'init', array( $this, 'register_entries_cpt' ) );
@@ -98,16 +101,22 @@ class Capex_CPT {
                 break;
 
             case 'count':
-                // ვითვლით რამდენი განაცხადია ამ ფორმაზე
-                $count_query = new WP_Query( array(
-                    'post_type'      => 'capex_entry',
-                    'meta_key'       => '_capex_form_id',
-                    'meta_value'     => $post_id,
-                    'posts_per_page' => -1,
-                    'fields'         => 'ids',
-                    'post_status'    => 'publish' // ან 'any'
-                ));
-                echo '<a href="' . admin_url('edit.php?post_type=capex_entry&form_id=' . $post_id) . '">' . $count_query->found_posts . '</a>';
+                if ( null === $this->entry_counts_cache ) {
+                    global $wpdb;
+                    $this->entry_counts_cache = array();
+                    $results = $wpdb->get_results(
+                        "SELECT pm.meta_value AS form_id, COUNT(*) AS cnt
+                         FROM {$wpdb->postmeta} pm
+                         JOIN {$wpdb->posts} p ON p.ID = pm.post_id AND p.post_type = 'capex_entry' AND p.post_status = 'publish'
+                         WHERE pm.meta_key = '_capex_form_id'
+                         GROUP BY pm.meta_value"
+                    );
+                    foreach ( $results as $row ) {
+                        $this->entry_counts_cache[ $row->form_id ] = (int) $row->cnt;
+                    }
+                }
+                $count = $this->entry_counts_cache[ $post_id ] ?? 0;
+                echo '<a href="' . admin_url('edit.php?post_type=capex_entry&form_id=' . $post_id) . '">' . $count . '</a>';
                 break;
         }
     }
@@ -127,7 +136,16 @@ class Capex_CPT {
         return $new_columns;
     }
 
+    private function get_form_structure( $form_id ) {
+        if ( ! isset( $this->form_structure_cache[ $form_id ] ) ) {
+            $json = get_post_meta( $form_id, '_capex_form_structure', true );
+            $this->form_structure_cache[ $form_id ] = json_decode( $json, true );
+        }
+        return $this->form_structure_cache[ $form_id ];
+    }
+
     public function render_entry_columns( $column, $post_id ) {
+        // WordPress primes meta cache for list table posts, so get_post_meta is cheap here
         switch ( $column ) {
             case 'full_name':
                 $entry_data = get_post_meta( $post_id, '_capex_entry_data', true );
@@ -135,8 +153,7 @@ class Capex_CPT {
                 $name = '';
                 $surname = '';
                 if ( ! empty( $entry_data ) && $form_id ) {
-                    $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
-                    $structure      = json_decode( $structure_json, true );
+                    $structure = $this->get_form_structure( $form_id );
                     if ( ! empty( $structure ) && is_array( $structure ) ) {
                         foreach ( $structure as $step ) {
                             if ( empty( $step['fields'] ) ) continue;

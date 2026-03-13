@@ -67,7 +67,7 @@ class Capex_Public {
                 delete_transient( 'capex_sso_return_url' );
                 $return_url = $saved_return;
             } else {
-                $return_url = wp_get_referer() ? wp_get_referer() : home_url( '/' );
+                $return_url = home_url( '/' );
             }
         }
 
@@ -336,18 +336,47 @@ class Capex_Public {
     public function handle_submit_application() {
         check_ajax_referer( 'capex_form_nonce', 'security' );
 
+        // Rate limiting: max 5 submissions per IP per hour
+        $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( $_SERVER['REMOTE_ADDR'] ) : '';
+        $rate_key = 'capex_rate_' . md5( $ip );
+        $attempts = (int) get_transient( $rate_key );
+        if ( $attempts >= 5 ) {
+            wp_send_json_error( array( 'message' => 'ძალიან ბევრი მოთხოვნა. სცადეთ მოგვიანებით.' ) );
+        }
+        set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
+
         $form_id = intval( $_POST['form_id'] );
         if ( ! $form_id ) wp_send_json_error( array( 'message' => 'ID Error' ) );
 
+        // Load form structure once for field whitelist and consent timestamps
+        $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
+        $structure = json_decode( $structure_json, true );
+
+        // Build whitelist of valid field IDs from form structure
+        $allowed_fields = array();
+        if ( ! empty( $structure ) && is_array( $structure ) ) {
+            foreach ( $structure as $step ) {
+                if ( empty( $step['fields'] ) ) continue;
+                foreach ( $step['fields'] as $field ) {
+                    if ( ! empty( $field['id'] ) ) {
+                        $allowed_fields[ $field['id'] ] = $field['type'] ?? 'text';
+                    }
+                }
+            }
+        }
+
+        // Only accept whitelisted fields
         $entry_data = array();
         foreach ( $_POST as $key => $val ) {
-            if ( strpos( $key, 'field_' ) === 0 ) {
-                $entry_data[ sanitize_text_field($key) ] = sanitize_text_field( $val );
+            $clean_key = sanitize_text_field( $key );
+            if ( isset( $allowed_fields[ $clean_key ] ) ) {
+                $entry_data[ $clean_key ] = sanitize_text_field( $val );
             }
         }
 
         if ( ! empty( $_FILES ) ) {
             foreach ( $_FILES as $field_id => $file_array ) {
+                if ( ! isset( $allowed_fields[ $field_id ] ) ) continue;
                 $uploaded = $this->handle_secure_upload( $file_array );
                 if ( ! empty( $uploaded ) ) {
                     $entry_data[ $field_id ] = $uploaded;
@@ -359,10 +388,6 @@ class Capex_Public {
         $entry_data['_user_ip'] = isset( $_SERVER['HTTP_X_FORWARDED_FOR'] )
             ? sanitize_text_field( explode( ',', $_SERVER['HTTP_X_FORWARDED_FOR'] )[0] )
             : sanitize_text_field( $_SERVER['REMOTE_ADDR'] ?? '' );
-
-        // Record timestamp for consent (html-type) fields
-        $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
-        $structure = json_decode( $structure_json, true );
         if ( ! empty( $structure ) && is_array( $structure ) ) {
             foreach ( $structure as $step ) {
                 if ( empty( $step['fields'] ) ) continue;
@@ -490,20 +515,44 @@ class Capex_Public {
         return $html;
     }
 
+    private static $allowed_upload_types = array(
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/gif'  => 'gif',
+        'image/webp' => 'webp',
+        'application/pdf' => 'pdf',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-excel' => 'xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+    );
+
     private function handle_secure_upload( $file_array ) {
+        $max_file_size = 10 * 1024 * 1024; // 10 MB per file
         $upload_dir = wp_upload_dir();
         $target_dir = $upload_dir['basedir'] . '/capex_secure_docs/';
         $target_url = $upload_dir['baseurl'] . '/capex_secure_docs/';
         $saved_files = array();
-        if(is_array($file_array['name'])) {
-            $count = count($file_array['name']);
-            for($i=0; $i<$count; $i++) {
-                if($file_array['error'][$i] == 0) {
-                    $ext = pathinfo($file_array['name'][$i], PATHINFO_EXTENSION);
-                    $new_name = time() . '_' . rand(1000,9999) . '.' . $ext;
-                    if(move_uploaded_file($file_array['tmp_name'][$i], $target_dir . $new_name)) {
-                        $saved_files[] = $target_url . $new_name;
-                    }
+        if ( is_array( $file_array['name'] ) ) {
+            $count = count( $file_array['name'] );
+            for ( $i = 0; $i < $count; $i++ ) {
+                if ( $file_array['error'][$i] != 0 ) continue;
+
+                // File size check
+                if ( $file_array['size'][$i] > $max_file_size ) continue;
+
+                // MIME type validation via finfo
+                $finfo = finfo_open( FILEINFO_MIME_TYPE );
+                $mime  = finfo_file( $finfo, $file_array['tmp_name'][$i] );
+                finfo_close( $finfo );
+
+                if ( ! isset( self::$allowed_upload_types[ $mime ] ) ) continue;
+
+                $ext = self::$allowed_upload_types[ $mime ];
+                $new_name = bin2hex( random_bytes( 16 ) ) . '.' . $ext;
+
+                if ( move_uploaded_file( $file_array['tmp_name'][$i], $target_dir . $new_name ) ) {
+                    $saved_files[] = $target_url . $new_name;
                 }
             }
         }

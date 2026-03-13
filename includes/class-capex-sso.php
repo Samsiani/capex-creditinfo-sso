@@ -61,7 +61,11 @@ class Capex_SSO {
      * 2. Validate state and extract return URL
      */
     public function validate_state_and_get_url( $state_encoded ) {
-        $state_decoded = base64_decode( $state_encoded );
+        $state_decoded = base64_decode( $state_encoded, true );
+        if ( false === $state_decoded ) {
+            return false;
+        }
+
         $parts = explode( '|', $state_decoded, 2 );
 
         if ( count( $parts ) < 2 ) {
@@ -75,6 +79,10 @@ class Capex_SSO {
 
         if ( $saved_url && $saved_url === $return_url ) {
             delete_transient( 'capex_sso_' . $nonce );
+            // Validate return URL is same-host
+            if ( wp_validate_redirect( $return_url, home_url( '/' ) ) !== $return_url ) {
+                return home_url( '/' );
+            }
             return $return_url;
         }
 
@@ -101,9 +109,6 @@ class Capex_SSO {
 
         $token_url = $this->base_url . '/token';
 
-        error_log( '[CAPEX SSO] Token request URL: ' . $token_url );
-        error_log( '[CAPEX SSO] Token request body: ' . wp_json_encode( $body ) );
-
         $response = wp_remote_post( $token_url, array(
             'body'    => $body,
             'headers' => $headers,
@@ -111,23 +116,18 @@ class Capex_SSO {
         ) );
 
         if ( is_wp_error( $response ) ) {
-            error_log( '[CAPEX SSO] WP Error: ' . $response->get_error_message() );
+            error_log( '[CAPEX SSO] Token request failed: ' . $response->get_error_message() );
             return false;
         }
 
         $http_code = wp_remote_retrieve_response_code( $response );
-        $raw_body  = wp_remote_retrieve_body( $response );
-
-        error_log( '[CAPEX SSO] Token response HTTP ' . $http_code . ': ' . $raw_body );
-
-        $data = json_decode( $raw_body, true );
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
 
         if ( isset( $data['access_token'] ) ) {
-            error_log( '[CAPEX SSO] Token obtained successfully' );
             return $data['access_token'];
         }
 
-        error_log( '[CAPEX SSO] Token exchange failed — no access_token in response' );
+        error_log( '[CAPEX SSO] Token exchange failed — HTTP ' . $http_code );
         return false;
     }
 
