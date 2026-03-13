@@ -171,7 +171,7 @@ class Capex_Admin {
         // Auth method badge
         $auth_method = isset($entry_data['_capex_auth_method']) ? $entry_data['_capex_auth_method'] : 'manual';
         if ( $auth_method === 'mycreditinfo' ) {
-            echo '<div class="cx-auth-badge cx-auth-sso">&#128274; ავტორიზებულია MyCreditinfo-ით</div>';
+            echo '<div class="cx-auth-badge cx-auth-sso">&#10004; ავტორიზებულია MyCreditinfo-ით</div>';
         } else {
             echo '<div class="cx-auth-badge cx-auth-manual">&#9997; შევსებულია ხელით</div>';
         }

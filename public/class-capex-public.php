@@ -250,7 +250,7 @@ class Capex_Public {
         }
 
         $col_class = 'cx-col-' . esc_attr($width);
-        $sso_lock_html = $is_sso_filled ? ' <span class="cx-sso-lock" title="MyCreditinfo">&#128274;</span>' : '';
+        $sso_lock_html = $is_sso_filled ? ' <span class="cx-sso-lock" title="MyCreditinfo">&#10004;</span>' : '';
 
         echo '<div id="container_'.esc_attr($id).'" class="form-group ' . $col_class . ' field-type-'.esc_attr($type) . ($is_sso_filled ? ' cx-sso-filled' : '') . '" '.$logic_attr.'>';
 
@@ -525,7 +525,7 @@ class Capex_Public {
         // Auth method badge
         $auth_method = isset( $entry_data['_capex_auth_method'] ) ? $entry_data['_capex_auth_method'] : 'manual';
         if ( $auth_method === 'mycreditinfo' ) {
-            $html .= '<div style="background:#d4edda;border-bottom:1px solid #c3e6cb;padding:10px 25px;font-size:13px;font-weight:600;color:#155724;">&#128274; ავტორიზებულია MyCreditinfo-ით</div>';
+            $html .= '<div style="background:#d4edda;border-bottom:1px solid #c3e6cb;padding:10px 25px;font-size:13px;font-weight:600;color:#155724;">&#10004; ავტორიზებულია MyCreditinfo-ით</div>';
         } else {
             $html .= '<div style="background:#fff3cd;border-bottom:1px solid #ffc107;padding:10px 25px;font-size:13px;font-weight:600;color:#856404;">&#9997; შევსებულია ხელით</div>';
         }

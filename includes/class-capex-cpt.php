@@ -185,7 +185,7 @@ class Capex_CPT {
                 $entry_data = get_post_meta( $post_id, '_capex_entry_data', true );
                 $method = isset( $entry_data['_capex_auth_method'] ) ? $entry_data['_capex_auth_method'] : 'manual';
                 if ( $method === 'mycreditinfo' ) {
-                    echo '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;">&#128274; MyCreditinfo</span>';
+                    echo '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;">&#10004; MyCreditinfo</span>';
                 } else {
                     echo '<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;">&#9997; ხელით</span>';
                 }
