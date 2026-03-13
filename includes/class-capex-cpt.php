@@ -115,6 +115,7 @@ class Capex_CPT {
         $new_columns = array(
             'cb'            => $columns['cb'],
             'title'         => 'მომხმარებელი / ID',
+            'full_name'     => 'სახელი / გვარი',
             'form_source'   => 'ფორმის წყარო',
             'status'        => 'სტატუსი',
             'date'          => 'შევსების დრო'
@@ -124,6 +125,34 @@ class Capex_CPT {
 
     public function render_entry_columns( $column, $post_id ) {
         switch ( $column ) {
+            case 'full_name':
+                $entry_data = get_post_meta( $post_id, '_capex_entry_data', true );
+                $form_id    = get_post_meta( $post_id, '_capex_form_id', true );
+                $name = '';
+                $surname = '';
+                if ( ! empty( $entry_data ) && $form_id ) {
+                    $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
+                    $structure      = json_decode( $structure_json, true );
+                    if ( ! empty( $structure ) && is_array( $structure ) ) {
+                        foreach ( $structure as $step ) {
+                            if ( empty( $step['fields'] ) ) continue;
+                            foreach ( $step['fields'] as $field ) {
+                                if ( ! empty( $field['sso_map'] ) && ! empty( $field['id'] ) ) {
+                                    if ( $field['sso_map'] === 'name' && isset( $entry_data[ $field['id'] ] ) ) {
+                                        $name = $entry_data[ $field['id'] ];
+                                    }
+                                    if ( $field['sso_map'] === 'surname' && isset( $entry_data[ $field['id'] ] ) ) {
+                                        $surname = $entry_data[ $field['id'] ];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                $full = trim( $name . ' ' . $surname );
+                echo $full ? esc_html( $full ) : '—';
+                break;
+
             case 'form_source':
                 $form_id = get_post_meta( $post_id, '_capex_form_id', true );
                 if ( $form_id ) {
