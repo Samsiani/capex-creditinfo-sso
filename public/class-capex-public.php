@@ -336,14 +336,16 @@ class Capex_Public {
     public function handle_submit_application() {
         check_ajax_referer( 'capex_form_nonce', 'security' );
 
-        // Rate limiting: max 5 submissions per IP per hour
-        $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( $_SERVER['REMOTE_ADDR'] ) : '';
-        $rate_key = 'capex_rate_' . md5( $ip );
-        $attempts = (int) get_transient( $rate_key );
-        if ( $attempts >= 5 ) {
-            wp_send_json_error( array( 'message' => 'ძალიან ბევრი მოთხოვნა. სცადეთ მოგვიანებით.' ) );
+        // Rate limiting: max 5 submissions per IP per hour (skip for admins)
+        if ( ! current_user_can( 'manage_options' ) ) {
+            $ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( $_SERVER['REMOTE_ADDR'] ) : '';
+            $rate_key = 'capex_rate_' . md5( $ip );
+            $attempts = (int) get_transient( $rate_key );
+            if ( $attempts >= 5 ) {
+                wp_send_json_error( array( 'message' => 'ძალიან ბევრი მოთხოვნა. სცადეთ მოგვიანებით.' ) );
+            }
+            set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
         }
-        set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
 
         $form_id = intval( $_POST['form_id'] );
         if ( ! $form_id ) wp_send_json_error( array( 'message' => 'ID Error' ) );
