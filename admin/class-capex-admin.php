@@ -20,6 +20,9 @@ class Capex_Admin {
         add_action( 'admin_menu', array( $this, 'add_plugin_menu' ) );
         add_action( 'admin_init', array( $this, 'register_settings' ) );
 
+        // Secure file proxy
+        add_action( 'admin_init', array( $this, 'handle_secure_file_proxy' ) );
+
         // Export/Import
         add_filter( 'post_row_actions', array( $this, 'add_export_row_action' ), 10, 2 );
         add_action( 'admin_init', array( $this, 'handle_form_export' ) );
@@ -195,7 +198,8 @@ class Capex_Admin {
                     // ტიპების მიხედვით გამოტანა
                     if ( $type === 'file' ) {
                         foreach($value as $file_url) {
-                            echo '<a href="'.esc_url($file_url).'" target="_blank" class="cx-file-link">📄 გახსნა</a> ';
+                            $proxy_url = self::get_secure_file_url( $file_url );
+                            echo '<a href="'.esc_url($proxy_url).'" target="_blank" class="cx-file-link">📄 გახსნა</a> ';
                         }
                     } elseif ( $type === 'html' ) {
                          $timestamp = isset($entry_data[$id . '_timestamp']) ? $entry_data[$id . '_timestamp'] : '';
@@ -239,6 +243,57 @@ class Capex_Admin {
         }
         </script>
         <?php
+    }
+
+    /**
+     * Serve files from capex_secure_docs via admin proxy (capability-gated).
+     */
+    public function handle_secure_file_proxy() {
+        if ( empty( $_GET['capex_file'] ) ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( 'Unauthorized.', 403 );
+        }
+
+        $filename = sanitize_file_name( $_GET['capex_file'] );
+        $upload   = wp_upload_dir();
+        $filepath = $upload['basedir'] . '/capex_secure_docs/' . $filename;
+
+        if ( ! file_exists( $filepath ) ) {
+            wp_die( 'File not found.', 404 );
+        }
+
+        $mime = wp_check_filetype( $filename );
+        $type = ! empty( $mime['type'] ) ? $mime['type'] : 'application/octet-stream';
+
+        header( 'Content-Type: ' . $type );
+        header( 'Content-Length: ' . filesize( $filepath ) );
+
+        // Images/PDFs display inline; everything else downloads
+        $inline_types = array( 'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf' );
+        if ( in_array( $type, $inline_types, true ) ) {
+            header( 'Content-Disposition: inline; filename="' . $filename . '"' );
+        } else {
+            header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+        }
+
+        readfile( $filepath );
+        exit;
+    }
+
+    /**
+     * Convert a direct capex_secure_docs URL to an admin proxy URL.
+     */
+    public static function get_secure_file_url( $direct_url ) {
+        $upload  = wp_upload_dir();
+        $base    = $upload['baseurl'] . '/capex_secure_docs/';
+        if ( strpos( $direct_url, $base ) === 0 ) {
+            $filename = basename( $direct_url );
+            return admin_url( 'edit.php?post_type=capex_entry&capex_file=' . urlencode( $filename ) );
+        }
+        return $direct_url;
     }
 
     /**

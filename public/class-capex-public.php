@@ -404,7 +404,8 @@ class Capex_Public {
                         if ( is_array( $value ) && ! empty( $value ) ) {
                             $links = array();
                             foreach ( $value as $url ) {
-                                $links[] = '<a href="' . esc_url( $url ) . '">გახსნა</a>';
+                                $proxy_url = Capex_Admin::get_secure_file_url( $url );
+                                $links[] = '<a href="' . esc_url( $proxy_url ) . '">გახსნა</a>';
                             }
                             $value = implode( ', ', $links );
                         } else {
