@@ -118,7 +118,7 @@ class Capex_CPT {
     public function set_entry_columns( $columns ) {
         $new_columns = array(
             'cb'            => $columns['cb'],
-            'title'         => 'მომხმარებელი / ID',
+            'title'         => 'განაცხადი',
             'full_name'     => 'სახელი / გვარი',
             'form_source'   => 'ფორმის წყარო',
             'status'        => 'სტატუსი',

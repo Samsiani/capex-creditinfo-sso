@@ -376,14 +376,19 @@ class Capex_Public {
             }
         }
 
-        $title = 'განაცხადი #' . time();
         $post_id = wp_insert_post( array(
-            'post_title'  => $title,
+            'post_title'  => 'განაცხადი',
             'post_type'   => 'capex_entry',
             'post_status' => 'publish',
         ));
 
         if ( $post_id ) {
+            // Set title with post ID
+            wp_update_post( array(
+                'ID'         => $post_id,
+                'post_title' => 'განაცხადი #' . $post_id,
+            ));
+
             update_post_meta( $post_id, '_capex_form_id', $form_id );
             update_post_meta( $post_id, '_capex_entry_data', $entry_data );
             $notify_email = get_option( 'capex_notification_email' );
@@ -392,7 +397,7 @@ class Capex_Public {
             }
 
             $email_body = $this->build_entry_email( $form_id, $entry_data, $post_id );
-            $email_subject = 'ახალი განაცხადი — ' . get_the_title( $form_id ) . ' (#' . $post_id . ')';
+            $email_subject = 'ახალი განაცხადი — ' . get_the_title( $form_id ) . ' (განაცხადი #' . $post_id . ')';
             $headers = array( 'Content-Type: text/html; charset=UTF-8' );
             wp_mail( $notify_email, $email_subject, $email_body, $headers );
             wp_send_json_success();
