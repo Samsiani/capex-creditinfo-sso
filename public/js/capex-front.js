@@ -3,6 +3,82 @@ jQuery(document).ready(function($) {
     // --- გლობალური ცვლადი ფაილების დასაგროვებლად ---
     const fileCollectors = {};
 
+    // --- 0. Form progress persistence (sessionStorage) ---
+    var $formWrapper = $('.capex-form-wrapper');
+    var formId = $formWrapper.data('form-id');
+    var storageKey = formId ? 'capex_form_' + formId : null;
+
+    function saveFormState() {
+        if (!storageKey) return;
+        var state = { step: 0, fields: {} };
+        var $activeStep = $('.form-step.active');
+        if ($activeStep.length && $activeStep.data('step')) {
+            state.step = parseInt($activeStep.data('step'));
+        }
+        $('.capex-loan-form').find('input, select, textarea').each(function() {
+            var $el = $(this);
+            var name = $el.attr('name');
+            if (!name || name === 'form_id' || name === '_capex_auth_method' || name === 'security') return;
+            if ($el.attr('type') === 'file' || $el.attr('type') === 'hidden') return;
+            if ($el.prop('readonly') || $el.prop('disabled')) return;
+            if ($el.attr('type') === 'checkbox') {
+                state.fields[name] = { type: 'checkbox', checked: $el.is(':checked') };
+            } else if ($el.attr('type') === 'radio') {
+                if ($el.is(':checked')) {
+                    state.fields[name] = { type: 'radio', value: $el.val() };
+                }
+            } else {
+                state.fields[name] = { type: 'value', value: $el.val() };
+            }
+        });
+        try { sessionStorage.setItem(storageKey, JSON.stringify(state)); } catch(e) {}
+    }
+
+    function restoreFormState() {
+        if (!storageKey) return;
+        var raw;
+        try { raw = sessionStorage.getItem(storageKey); } catch(e) { return; }
+        if (!raw) return;
+        var state;
+        try { state = JSON.parse(raw); } catch(e) { return; }
+        if (!state || !state.fields) return;
+
+        // Restore field values
+        $.each(state.fields, function(name, data) {
+            if (data.type === 'checkbox') {
+                $('input[name="' + name + '"]').prop('checked', data.checked);
+            } else if (data.type === 'radio') {
+                $('input[name="' + name + '"][value="' + data.value + '"]').prop('checked', true);
+            } else {
+                var $el = $('[name="' + name + '"]').not('[type="hidden"]');
+                if ($el.length && !$el.prop('readonly') && !$el.prop('disabled')) {
+                    $el.val(data.value);
+                }
+            }
+        });
+
+        // Restore step
+        if (state.step && state.step > 1) {
+            var $target = $('#step-' + state.step);
+            if ($target.length) {
+                $('.form-step').removeClass('active');
+                $target.addClass('active');
+                updateProgressBar(state.step);
+            }
+        }
+    }
+
+    function clearFormState() {
+        if (!storageKey) return;
+        try { sessionStorage.removeItem(storageKey); } catch(e) {}
+    }
+
+    // Restore on load
+    restoreFormState();
+    // Re-run logic after restore so conditional fields show/hide correctly
+    runConditionalLogic();
+    updateConsentName();
+
     // --- 1. ნაბიჯების მართვა (Wizard) ---
     window.capexNextStep = function() {
         const $currentStep = $('.form-step.active');
@@ -20,6 +96,7 @@ jQuery(document).ready(function($) {
             $('#capex-error-box').hide();
             $('#capex-error-list').empty();
             scrollToTop();
+            saveFormState();
         }
     };
 
@@ -35,6 +112,7 @@ jQuery(document).ready(function($) {
             updateProgressBar(prevStepNum);
             $('#capex-error-box').hide();
             scrollToTop();
+            saveFormState();
         }
     };
 
@@ -121,9 +199,9 @@ jQuery(document).ready(function($) {
     $(document).on('change input', '.capex-loan-form :input', function() {
         if($(this).attr('type') !== 'file') {
             runConditionalLogic();
+            saveFormState();
         }
     });
-    runConditionalLogic();
 
 
     // --- 3. ვალიდაცია ---
@@ -379,6 +457,7 @@ jQuery(document).ready(function($) {
             processData: false,
             success: function(response) {
                 if (response.success) {
+                    clearFormState();
                     $('.form-step').removeClass('active');
                     $('#step-success').addClass('active');
                     $('.capex-progress').hide();
