@@ -88,7 +88,7 @@ class Capex_Public {
             $session_id = sanitize_text_field( $_COOKIE['capex_session_id'] );
         }
 
-        set_transient( 'capex_user_data_' . $session_id, $user_data, 5 * MINUTE_IN_SECONDS );
+        set_transient( 'capex_user_data_' . $session_id, $user_data, HOUR_IN_SECONDS );
 
         // Redirect to the form page
         echo '<script>window.location.href = ' . wp_json_encode( esc_url( $return_url ) ) . ';</script>';
@@ -121,7 +121,6 @@ class Capex_Public {
             $cached_data = get_transient( 'capex_user_data_' . $session_id );
             if ( $cached_data ) {
                 $prefill_data = $cached_data;
-                delete_transient( 'capex_user_data_' . $session_id );
             }
         }
 
@@ -250,7 +249,7 @@ class Capex_Public {
         }
 
         $col_class = 'cx-col-' . esc_attr($width);
-        $sso_lock_html = $is_sso_filled ? ' <span class="cx-sso-lock" title="MyCreditinfo">&#10004;</span>' : '';
+        $sso_lock_html = $is_sso_filled ? ' <span class="cx-sso-lock" title="MyCreditinfo"></span>' : '';
 
         echo '<div id="container_'.esc_attr($id).'" class="form-group ' . $col_class . ' field-type-'.esc_attr($type) . ($is_sso_filled ? ' cx-sso-filled' : '') . '" '.$logic_attr.'>';
 
@@ -448,6 +447,12 @@ class Capex_Public {
             $email_subject = 'ახალი განაცხადი — ' . get_the_title( $form_id ) . ' (განაცხადი #' . $post_id . ')';
             $headers = array( 'Content-Type: text/html; charset=UTF-8' );
             wp_mail( $notify_email, $email_subject, $email_body, $headers );
+
+            // Clear SSO transient after successful submission
+            if ( isset( $_COOKIE['capex_session_id'] ) ) {
+                delete_transient( 'capex_user_data_' . sanitize_text_field( $_COOKIE['capex_session_id'] ) );
+            }
+
             wp_send_json_success();
         } else {
             wp_send_json_error( array( 'message' => 'DB Error' ) );
