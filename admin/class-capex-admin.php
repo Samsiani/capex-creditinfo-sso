@@ -134,6 +134,11 @@ class Capex_Admin {
      * RENDER: განაცხადის ნახვა (დინამიური)
      */
     public function render_entry_view( $post ) {
+        // Mark as read
+        if ( ! get_post_meta( $post->ID, '_capex_entry_read', true ) ) {
+            update_post_meta( $post->ID, '_capex_entry_read', current_time( 'Y-m-d H:i:s' ) );
+        }
+
         // 1. გავიგოთ რომელ ფორმას ეკუთვნის ეს განაცხადი
         $form_id = get_post_meta( $post->ID, '_capex_form_id', true );
         

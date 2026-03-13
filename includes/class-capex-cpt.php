@@ -17,6 +17,10 @@ class Capex_CPT {
         // განაცხადების ცხრილის სვეტები (Entries List)
         add_filter( 'manage_capex_entry_posts_columns', array( $this, 'set_entry_columns' ) );
         add_action( 'manage_capex_entry_posts_custom_column', array( $this, 'render_entry_columns' ), 10, 2 );
+
+        // Bold unread entry rows
+        add_filter( 'post_class', array( $this, 'add_unread_row_class' ), 10, 3 );
+        add_action( 'admin_head', array( $this, 'entry_list_styles' ) );
     }
 
     /**
@@ -163,9 +167,39 @@ class Capex_CPT {
                 break;
 
             case 'status':
-                // მომავალში შეგვიძლია სტატუსების სისტემა დავამატოთ (New, Read, etc.)
-                echo '<span class="dashicons dashicons-yes" style="color:green"></span> მიღებულია';
+                $is_read = get_post_meta( $post_id, '_capex_entry_read', true );
+                if ( $is_read ) {
+                    echo '<span style="color:#8c8f94;">&#9654; ნანახია</span>';
+                } else {
+                    echo '<span style="color:#d63638; font-weight:700;">&#9679; ახალი</span>';
+                }
                 break;
         }
+    }
+
+    /**
+     * Add CSS class to unread entry rows.
+     */
+    public function add_unread_row_class( $classes, $class, $post_id ) {
+        if ( get_post_type( $post_id ) === 'capex_entry' ) {
+            if ( ! get_post_meta( $post_id, '_capex_entry_read', true ) ) {
+                $classes[] = 'capex-unread';
+            }
+        }
+        return $classes;
+    }
+
+    /**
+     * Inline styles for entry list table.
+     */
+    public function entry_list_styles() {
+        $screen = get_current_screen();
+        if ( ! $screen || $screen->id !== 'edit-capex_entry' ) {
+            return;
+        }
+        echo '<style>
+            .capex-unread td { font-weight: 600 !important; }
+            .capex-unread { background: #fef8ee !important; }
+        </style>';
     }
 }
