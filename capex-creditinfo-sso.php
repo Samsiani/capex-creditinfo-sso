@@ -3,7 +3,7 @@
  * Plugin Name: Capex CreditInfo SSO & Loan Manager
  * Plugin URI:  https://capexcredit.ge
  * Description: ფორმების კონსტრუქტორი (Form Builder), განაცხადების მართვა და MyCreditinfo ინტეგრაცია.
- * Version:     3.0.2
+ * Version:     3.1.0
  * Author:      Samsiani
  * Author URI:  https://samsiani.com
  * Text Domain: capex-sso
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // კონსტანტები
-define( 'CAPEX_VERSION', '3.0.2' );
+define( 'CAPEX_VERSION', '3.1.0' );
 define( 'CAPEX_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CAPEX_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 

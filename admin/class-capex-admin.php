@@ -168,6 +168,14 @@ class Capex_Admin {
         echo '<button type="button" class="cx-btn cx-btn-primary cx-no-print" onclick="capexPrintEntry()">&#128424; ბეჭდვა</button>';
         echo '</div>';
 
+        // Auth method badge
+        $auth_method = isset($entry_data['_capex_auth_method']) ? $entry_data['_capex_auth_method'] : 'manual';
+        if ( $auth_method === 'mycreditinfo' ) {
+            echo '<div class="cx-auth-badge cx-auth-sso">&#128274; ავტორიზებულია MyCreditinfo-ით</div>';
+        } else {
+            echo '<div class="cx-auth-badge cx-auth-manual">&#9997; შევსებულია ხელით</div>';
+        }
+
         if ( empty( $structure ) || ! is_array( $structure ) ) {
             echo "ფორმის სტრუქტურა ვერ მოიძებნა ან დაზიანებულია.";
             return;

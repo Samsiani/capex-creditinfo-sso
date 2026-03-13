@@ -148,6 +148,7 @@ class Capex_Public {
 
             <form class="capex-loan-form" enctype="multipart/form-data" novalidate>
                 <input type="hidden" name="form_id" value="<?php echo esc_attr( $form_id ); ?>">
+                <input type="hidden" name="_capex_auth_method" value="<?php echo ! empty( $prefill_data ) ? 'mycreditinfo' : 'manual'; ?>">
 
                 <?php foreach($structure as $index => $step):
                     $step_num = $index + 1;
@@ -229,9 +230,12 @@ class Capex_Public {
         }
 
         $value = '';
+        $is_sso_filled = false;
         if ($sso_map && !empty($prefill_data[$sso_map])) {
             $value = esc_attr($prefill_data[$sso_map]);
+            $is_sso_filled = true;
         }
+        $readonly_attr = $is_sso_filled ? 'readonly' : '';
 
         // Autofill Mapping
         $autocomplete = 'autocomplete="on"';
@@ -246,8 +250,9 @@ class Capex_Public {
         }
 
         $col_class = 'cx-col-' . esc_attr($width);
+        $sso_lock_html = $is_sso_filled ? ' <span class="cx-sso-lock" title="MyCreditinfo">&#128274;</span>' : '';
 
-        echo '<div id="container_'.esc_attr($id).'" class="form-group ' . $col_class . ' field-type-'.esc_attr($type).'" '.$logic_attr.'>';
+        echo '<div id="container_'.esc_attr($id).'" class="form-group ' . $col_class . ' field-type-'.esc_attr($type) . ($is_sso_filled ? ' cx-sso-filled' : '') . '" '.$logic_attr.'>';
 
         if ($type === 'html') {
              echo '<label class="form-label">'.esc_html($label).' <span class="required">*</span></label>';
@@ -263,32 +268,41 @@ class Capex_Public {
              echo '<div class="file-list-display" id="display_'.esc_attr($id).'"></div>';
         }
         elseif ($type === 'radio') {
-             echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').'</label>';
+             echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').$sso_lock_html.'</label>';
              if(!empty($field['options'])) {
+                 $selected_value = '';
                  foreach($field['options'] as $idx => $opt) {
                      // Auto-select from SSO: match by value or by option index for customer_type
                      $checked = '';
                      if ( $value !== '' ) {
                          if ( $value === $opt['value'] ) {
                              $checked = 'checked';
+                             $selected_value = $opt['value'];
                          } elseif ( $sso_map === 'customer_type' ) {
                              // SSO returns PERSON/COMPANY — map to first/second radio option
                              if ( ( strtoupper($value) === 'PERSON' && $idx === 0 ) ||
                                   ( strtoupper($value) === 'COMPANY' && $idx === 1 ) ) {
                                  $checked = 'checked';
+                                 $selected_value = $opt['value'];
                              }
                          }
                      }
+                     $disabled_attr = $is_sso_filled ? 'disabled' : '';
                      echo '<label class="checkbox-label" style="margin-bottom:5px;">';
-                     echo '<input type="radio" name="'.esc_attr($id).'" value="'.esc_attr($opt['value']).'" '.$required.' '.$checked.'> ';
+                     echo '<input type="radio" name="'.esc_attr($id).'" value="'.esc_attr($opt['value']).'" '.$required.' '.$checked.' '.$disabled_attr.'> ';
                      echo esc_html($opt['label']);
                      echo '</label>';
+                 }
+                 // Disabled inputs don't submit — add hidden input with the selected value
+                 if ( $is_sso_filled && $selected_value !== '' ) {
+                     echo '<input type="hidden" name="'.esc_attr($id).'" value="'.esc_attr($selected_value).'">';
                  }
              }
         }
         elseif ($type === 'select') {
-             echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').'</label>';
-             echo '<select name="'.esc_attr($id).'" class="form-control" '.$required.' '.$autocomplete.'>';
+             $disabled_select = $is_sso_filled ? 'disabled' : '';
+             echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').$sso_lock_html.'</label>';
+             echo '<select name="'.esc_attr($id).'" class="form-control" '.$required.' '.$autocomplete.' '.$disabled_select.'>';
              echo '<option value="">- აირჩიეთ -</option>';
              if(!empty($field['options'])) {
                  foreach($field['options'] as $opt) {
@@ -297,6 +311,9 @@ class Capex_Public {
                  }
              }
              echo '</select>';
+             if ( $is_sso_filled && $value !== '' ) {
+                 echo '<input type="hidden" name="'.esc_attr($id).'" value="'.esc_attr($value).'">';
+             }
         }
         elseif ($type === 'date') {
             // For DOB fields: date-only, max = 18 years ago
@@ -312,9 +329,9 @@ class Capex_Public {
                 }
             }
 
-            echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').'</label>';
+            echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').$sso_lock_html.'</label>';
             echo '<div style="display:flex; gap:10px;">';
-            echo '<input type="'.esc_attr($input_type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control" value="'.esc_attr($value).'" '.$required.' '.$autocomplete.' '.$max_attr.'>';
+            echo '<input type="'.esc_attr($input_type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control" value="'.esc_attr($value).'" '.$required.' '.$autocomplete.' '.$max_attr.' '.$readonly_attr.'>';
             if ( ! $is_dob ) {
                 echo '<button type="button" class="cx-btn-now" style="padding:0 15px; border:1px solid #ddd; background:#f1f1f1; cursor:pointer; border-radius:4px; font-size:13px;">ახლა</button>';
             }
@@ -322,12 +339,12 @@ class Capex_Public {
        }
         else {
              // Text, Number, Email
-             echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').'</label>';
+             echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').$sso_lock_html.'</label>';
              $extra_class = '';
              if($sso_map == 'name') $extra_class = 'cx-input-name';
              if($sso_map == 'surname') $extra_class = 'cx-input-surname';
 
-             echo '<input type="'.esc_attr($type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control '.esc_attr($extra_class).'" value="'.esc_attr($value).'" '.$required.' '.$autocomplete.' '.$max_length.' '.$numbers_only_attr.'>';
+             echo '<input type="'.esc_attr($type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control '.esc_attr($extra_class).'" value="'.esc_attr($value).'" '.$required.' '.$autocomplete.' '.$max_length.' '.$numbers_only_attr.' '.$readonly_attr.'>';
         }
         echo '</div>';
     }
@@ -384,6 +401,10 @@ class Capex_Public {
                 }
             }
         }
+
+        // Record auth method
+        $auth_method = isset( $_POST['_capex_auth_method'] ) ? sanitize_text_field( $_POST['_capex_auth_method'] ) : 'manual';
+        $entry_data['_capex_auth_method'] = in_array( $auth_method, array( 'mycreditinfo', 'manual' ), true ) ? $auth_method : 'manual';
 
         // Record user IP
         $entry_data['_user_ip'] = isset( $_SERVER['HTTP_X_FORWARDED_FOR'] )
@@ -500,6 +521,14 @@ class Capex_Public {
         }
         $html .= '</p>';
         $html .= '</div>';
+
+        // Auth method badge
+        $auth_method = isset( $entry_data['_capex_auth_method'] ) ? $entry_data['_capex_auth_method'] : 'manual';
+        if ( $auth_method === 'mycreditinfo' ) {
+            $html .= '<div style="background:#d4edda;border-bottom:1px solid #c3e6cb;padding:10px 25px;font-size:13px;font-weight:600;color:#155724;">&#128274; ავტორიზებულია MyCreditinfo-ით</div>';
+        } else {
+            $html .= '<div style="background:#fff3cd;border-bottom:1px solid #ffc107;padding:10px 25px;font-size:13px;font-weight:600;color:#856404;">&#9997; შევსებულია ხელით</div>';
+        }
 
         // Body
         $html .= '<div style="padding:20px 25px;">';
