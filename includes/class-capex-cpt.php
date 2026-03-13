@@ -104,13 +104,14 @@ class Capex_CPT {
                 if ( null === $this->entry_counts_cache ) {
                     global $wpdb;
                     $this->entry_counts_cache = array();
-                    $results = $wpdb->get_results(
+                    $results = $wpdb->get_results( $wpdb->prepare(
                         "SELECT pm.meta_value AS form_id, COUNT(*) AS cnt
                          FROM {$wpdb->postmeta} pm
-                         JOIN {$wpdb->posts} p ON p.ID = pm.post_id AND p.post_type = 'capex_entry' AND p.post_status = 'publish'
-                         WHERE pm.meta_key = '_capex_form_id'
-                         GROUP BY pm.meta_value"
-                    );
+                         JOIN {$wpdb->posts} p ON p.ID = pm.post_id AND p.post_type = %s AND p.post_status = %s
+                         WHERE pm.meta_key = %s
+                         GROUP BY pm.meta_value",
+                        'capex_entry', 'publish', '_capex_form_id'
+                    ) );
                     foreach ( $results as $row ) {
                         $this->entry_counts_cache[ $row->form_id ] = (int) $row->cnt;
                     }
@@ -146,10 +147,15 @@ class Capex_CPT {
 
     public function render_entry_columns( $column, $post_id ) {
         // WordPress primes meta cache for list table posts, so get_post_meta is cheap here
+        static $entry_form_ids = array();
+        if ( ! isset( $entry_form_ids[ $post_id ] ) ) {
+            $entry_form_ids[ $post_id ] = get_post_meta( $post_id, '_capex_form_id', true );
+        }
+
         switch ( $column ) {
             case 'full_name':
                 $entry_data = get_post_meta( $post_id, '_capex_entry_data', true );
-                $form_id    = get_post_meta( $post_id, '_capex_form_id', true );
+                $form_id    = $entry_form_ids[ $post_id ];
                 $name = '';
                 $surname = '';
                 if ( ! empty( $entry_data ) && $form_id ) {
@@ -175,7 +181,7 @@ class Capex_CPT {
                 break;
 
             case 'form_source':
-                $form_id = get_post_meta( $post_id, '_capex_form_id', true );
+                $form_id = $entry_form_ids[ $post_id ];
                 if ( $form_id ) {
                     echo '<a href="' . get_edit_post_link( $form_id ) . '">' . get_the_title( $form_id ) . '</a>';
                 } else {

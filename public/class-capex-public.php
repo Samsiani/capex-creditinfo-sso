@@ -23,11 +23,6 @@ class Capex_Public {
     public function enqueue_assets() {
         wp_register_style( 'capex-front-css', CAPEX_PLUGIN_URL . 'public/css/capex-front.css', array(), CAPEX_VERSION );
         wp_register_script( 'capex-front-js', CAPEX_PLUGIN_URL . 'public/js/capex-front.js', array( 'jquery' ), CAPEX_VERSION, true );
-
-        wp_localize_script( 'capex-front-js', 'capex_obj', array(
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
-            'nonce'    => wp_create_nonce( 'capex_form_nonce' )
-        ));
     }
 
     /**
@@ -115,6 +110,10 @@ class Capex_Public {
 
         wp_enqueue_style( 'capex-front-css' );
         wp_enqueue_script( 'capex-front-js' );
+        wp_localize_script( 'capex-front-js', 'capex_obj', array(
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce'    => wp_create_nonce( 'capex_form_nonce' )
+        ));
 
         $prefill_data = array();
         if ( isset( $_COOKIE['capex_session_id'] ) ) {
@@ -315,7 +314,7 @@ class Capex_Public {
 
             echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').'</label>';
             echo '<div style="display:flex; gap:10px;">';
-            echo '<input type="'.esc_attr($input_type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control" value="'.$value.'" '.$required.' '.$autocomplete.' '.$max_attr.'>';
+            echo '<input type="'.esc_attr($input_type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control" value="'.esc_attr($value).'" '.$required.' '.$autocomplete.' '.$max_attr.'>';
             if ( ! $is_dob ) {
                 echo '<button type="button" class="cx-btn-now" style="padding:0 15px; border:1px solid #ddd; background:#f1f1f1; cursor:pointer; border-radius:4px; font-size:13px;">ახლა</button>';
             }
@@ -328,7 +327,7 @@ class Capex_Public {
              if($sso_map == 'name') $extra_class = 'cx-input-name';
              if($sso_map == 'surname') $extra_class = 'cx-input-surname';
 
-             echo '<input type="'.esc_attr($type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control '.esc_attr($extra_class).'" value="'.$value.'" '.$required.' '.$autocomplete.' '.$max_length.' '.$numbers_only_attr.'>';
+             echo '<input type="'.esc_attr($type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control '.esc_attr($extra_class).'" value="'.esc_attr($value).'" '.$required.' '.$autocomplete.' '.$max_length.' '.$numbers_only_attr.'>';
         }
         echo '</div>';
     }
@@ -423,7 +422,7 @@ class Capex_Public {
                 $notify_email = get_option( 'admin_email' );
             }
 
-            $email_body = $this->build_entry_email( $form_id, $entry_data, $post_id );
+            $email_body = $this->build_entry_email( $form_id, $entry_data, $post_id, $structure );
             $email_subject = 'ახალი განაცხადი — ' . get_the_title( $form_id ) . ' (განაცხადი #' . $post_id . ')';
             $headers = array( 'Content-Type: text/html; charset=UTF-8' );
             wp_mail( $notify_email, $email_subject, $email_body, $headers );
@@ -433,13 +432,15 @@ class Capex_Public {
         }
     }
 
-    private function build_entry_email( $form_id, $entry_data, $post_id ) {
+    private function build_entry_email( $form_id, $entry_data, $post_id, $structure = null ) {
         $form_title = get_the_title( $form_id );
         $date       = current_time( 'Y-m-d H:i:s' );
         $edit_url   = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
 
-        $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
-        $structure      = json_decode( $structure_json, true );
+        if ( null === $structure ) {
+            $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
+            $structure      = json_decode( $structure_json, true );
+        }
 
         $rows_html = '';
 

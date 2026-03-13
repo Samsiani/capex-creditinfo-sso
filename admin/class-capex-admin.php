@@ -159,7 +159,7 @@ class Capex_Admin {
         // სისტემური ინფო + Print ღილაკი
         echo '<div class="cx-system-info" style="display:flex; justify-content:space-between; align-items:center;">';
         $user_ip = isset($entry_data['_user_ip']) ? $entry_data['_user_ip'] : '';
-        echo '<div><strong>ფორმა:</strong> <a href="'.get_edit_post_link($form_id).'">'.get_the_title($form_id).'</a> | ';
+        echo '<div><strong>ფორმა:</strong> <a href="'.esc_url(get_edit_post_link($form_id)).'">'.esc_html(get_the_title($form_id)).'</a> | ';
         echo '<strong>დრო:</strong> ' . get_the_date('Y-m-d H:i:s', $post->ID);
         if ( $user_ip ) {
             echo ' | <span class="cx-no-print"><strong>User IP:</strong> ' . esc_html( $user_ip ) . '</span>';
