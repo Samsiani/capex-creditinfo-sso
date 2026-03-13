@@ -3,3 +3,6 @@
 *.docx
 *.zip
 *.postman_collection.json
+convert-gf.py
+gravityforms-export-*.json
+migration-imports/
