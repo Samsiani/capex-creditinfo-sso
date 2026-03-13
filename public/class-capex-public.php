@@ -265,6 +265,7 @@ class Capex_Public {
              echo '<span style="font-size:24px;">&#128194;</span> <span class="file-msg">აირჩიეთ ფაილი</span>';
              echo '<input type="file" id="'.esc_attr($id).'" name="'.esc_attr($id).'[]" multiple hidden>';
              echo '</div>';
+             echo '<p class="cx-file-hint">JPG, PNG, GIF, WEBP, PDF, DOC, DOCX, XLS, XLSX — მაქს. 10 MB თითო ფაილი</p>';
              echo '<div class="file-list-display" id="display_'.esc_attr($id).'"></div>';
         }
         elseif ($type === 'radio') {

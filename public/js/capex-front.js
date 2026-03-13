@@ -344,58 +344,67 @@ jQuery(document).ready(function($) {
     }
 
     // --- ფაილის ატვირთვა ---
+    function renderFileList(fieldId) {
+        var $input = $('#' + fieldId);
+        var $display = $('#display_' + fieldId);
+        var dt = fileCollectors[fieldId];
+        if (!dt || dt.files.length === 0) {
+            $display.empty();
+            $input.closest('.file-drop-area').css('border-color', '#ccc').css('background', '#fafafa');
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < dt.files.length; i++) {
+            html += '<div class="cx-file-item">';
+            html += '<span class="cx-file-item-name">&#128196; ' + $('<span>').text(dt.files[i].name).html() + '</span>';
+            html += '<span class="cx-file-remove" data-field="' + fieldId + '" data-index="' + i + '" title="წაშლა">&times;</span>';
+            html += '</div>';
+        }
+        $display.html(html);
+        $input.closest('.file-drop-area').css('border-color', '#46b450').css('background', '#f0fff4');
+        highlightError($input, false);
+    }
+
     $(document).on('change', '.file-drop-area input[type="file"]', function() {
-        const $input = $(this);
-        const fieldId = $input.attr('id');
-        const $display = $('#display_' + fieldId);
-        
+        var fieldId = $(this).attr('id');
         if (!fileCollectors[fieldId]) {
             fileCollectors[fieldId] = new DataTransfer();
         }
-
         if (this.files && this.files.length > 0) {
-            for (let i = 0; i < this.files.length; i++) {
-                let isDuplicate = false;
-                const newFile = this.files[i];
-                for(let j=0; j < fileCollectors[fieldId].files.length; j++) {
-                     const existing = fileCollectors[fieldId].files[j];
-                     if(existing.name === newFile.name && existing.size === newFile.size) {
-                         isDuplicate = true;
-                         break;
-                     }
+            for (var i = 0; i < this.files.length; i++) {
+                var isDuplicate = false;
+                var newFile = this.files[i];
+                for (var j = 0; j < fileCollectors[fieldId].files.length; j++) {
+                    var existing = fileCollectors[fieldId].files[j];
+                    if (existing.name === newFile.name && existing.size === newFile.size) {
+                        isDuplicate = true;
+                        break;
+                    }
                 }
-                if(!isDuplicate) {
+                if (!isDuplicate) {
                     fileCollectors[fieldId].items.add(newFile);
                 }
             }
         }
-
         this.files = fileCollectors[fieldId].files;
-
-        if (this.files.length > 0) {
-            let fileListHtml = '<ul style="list-style:none; padding:0; margin:5px 0;">';
-            for (let i = 0; i < this.files.length; i++) {
-                fileListHtml += `<li style="margin-bottom:3px;">📄 ${this.files[i].name}</li>`;
-            }
-            fileListHtml += '</ul>';
-            fileListHtml += `<div style="margin-top:5px; font-size:12px; cursor:pointer; color:#d63638;" onclick="jQuery('#${fieldId}').trigger('clearfiles')">[x] სიის გასუფთავება</div>`;
-
-            $display.html(fileListHtml);
-            $input.closest('.file-drop-area').css('border-color', '#46b450').css('background', '#f0fff4');
-            highlightError($input, false);
-        } else {
-            $display.text('');
-            $input.closest('.file-drop-area').css('border-color', '#ccc').css('background', '#fafafa');
-        }
+        renderFileList(fieldId);
     });
 
-    $(document).on('clearfiles', 'input[type="file"]', function() {
-        const id = $(this).attr('id');
-        fileCollectors[id] = new DataTransfer(); 
-        this.files = fileCollectors[id].files; 
-        
-        $('#display_' + id).text('');
-        $(this).closest('.file-drop-area').css('border-color', '#ccc').css('background', '#fafafa');
+    // Remove single file
+    $(document).on('click', '.cx-file-remove', function(e) {
+        e.stopPropagation();
+        var fieldId = $(this).data('field');
+        var index = $(this).data('index');
+        var dt = fileCollectors[fieldId];
+        if (!dt) return;
+        var newDt = new DataTransfer();
+        for (var i = 0; i < dt.files.length; i++) {
+            if (i !== index) newDt.items.add(dt.files[i]);
+        }
+        fileCollectors[fieldId] = newDt;
+        var input = document.getElementById(fieldId);
+        if (input) input.files = newDt.files;
+        renderFileList(fieldId);
     });
 
     // --- 5. IBAN კოპირების ლოგიკა (ახალი) ---
