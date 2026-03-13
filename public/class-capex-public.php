@@ -327,6 +327,27 @@ class Capex_Public {
             }
         }
 
+        // Record user IP
+        $entry_data['_user_ip'] = isset( $_SERVER['HTTP_X_FORWARDED_FOR'] )
+            ? sanitize_text_field( explode( ',', $_SERVER['HTTP_X_FORWARDED_FOR'] )[0] )
+            : sanitize_text_field( $_SERVER['REMOTE_ADDR'] ?? '' );
+
+        // Record timestamp for consent (html-type) fields
+        $structure_json = get_post_meta( $form_id, '_capex_form_structure', true );
+        $structure = json_decode( $structure_json, true );
+        if ( ! empty( $structure ) && is_array( $structure ) ) {
+            foreach ( $structure as $step ) {
+                if ( empty( $step['fields'] ) ) continue;
+                foreach ( $step['fields'] as $field ) {
+                    if ( isset( $field['type'] ) && $field['type'] === 'html' && ! empty( $field['id'] ) ) {
+                        if ( ! empty( $entry_data[ $field['id'] ] ) ) {
+                            $entry_data[ $field['id'] . '_timestamp' ] = current_time( 'Y-m-d H:i:s' );
+                        }
+                    }
+                }
+            }
+        }
+
         $title = 'განაცხადი #' . time();
         $post_id = wp_insert_post( array(
             'post_title'  => $title,
@@ -374,7 +395,11 @@ class Capex_Public {
                     $value = isset( $entry_data[ $id ] ) ? $entry_data[ $id ] : '';
 
                     if ( $type === 'html' ) {
+                        $timestamp = isset( $entry_data[ $id . '_timestamp' ] ) ? $entry_data[ $id . '_timestamp' ] : '';
                         $value = '&#10004; დადასტურებულია';
+                        if ( $timestamp ) {
+                            $value .= ' <span style="color:#666; font-size:12px;">(' . esc_html( $timestamp ) . ')</span>';
+                        }
                     } elseif ( $type === 'file' ) {
                         if ( is_array( $value ) && ! empty( $value ) ) {
                             $links = array();
@@ -406,7 +431,12 @@ class Capex_Public {
         // Header
         $html .= '<div style="background:#0073aa;padding:20px 25px;color:#fff;">';
         $html .= '<h1 style="margin:0;font-size:20px;">ახალი განაცხადი</h1>';
-        $html .= '<p style="margin:8px 0 0;font-size:13px;opacity:0.9;">ფორმა: ' . esc_html( $form_title ) . ' | დრო: ' . $date . '</p>';
+        $user_ip = isset( $entry_data['_user_ip'] ) ? $entry_data['_user_ip'] : '';
+        $html .= '<p style="margin:8px 0 0;font-size:13px;opacity:0.9;">ფორმა: ' . esc_html( $form_title ) . ' | დრო: ' . $date;
+        if ( $user_ip ) {
+            $html .= ' | User IP: ' . esc_html( $user_ip );
+        }
+        $html .= '</p>';
         $html .= '</div>';
 
         // Body

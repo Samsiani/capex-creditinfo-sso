@@ -150,8 +150,13 @@ class Capex_Admin {
 
         // სისტემური ინფო + Print ღილაკი
         echo '<div class="cx-system-info" style="display:flex; justify-content:space-between; align-items:center;">';
+        $user_ip = isset($entry_data['_user_ip']) ? $entry_data['_user_ip'] : '';
         echo '<div><strong>ფორმა:</strong> <a href="'.get_edit_post_link($form_id).'">'.get_the_title($form_id).'</a> | ';
-        echo '<strong>დრო:</strong> ' . get_the_date('Y-m-d H:i:s', $post->ID) . '</div>';
+        echo '<strong>დრო:</strong> ' . get_the_date('Y-m-d H:i:s', $post->ID);
+        if ( $user_ip ) {
+            echo ' | <span class="cx-no-print"><strong>User IP:</strong> ' . esc_html( $user_ip ) . '</span>';
+        }
+        echo '</div>';
         echo '<button type="button" class="cx-btn cx-btn-primary cx-no-print" onclick="capexPrintEntry()">&#128424; ბეჭდვა</button>';
         echo '</div>';
 
@@ -193,7 +198,11 @@ class Capex_Admin {
                             echo '<a href="'.esc_url($file_url).'" target="_blank" class="cx-file-link">📄 გახსნა</a> ';
                         }
                     } elseif ( $type === 'html' ) {
+                         $timestamp = isset($entry_data[$id . '_timestamp']) ? $entry_data[$id . '_timestamp'] : '';
                          echo '<span style="color:green">✔ დადასტურებულია</span>';
+                         if ( $timestamp ) {
+                             echo ' <span style="color:#666; font-size:12px;">(' . esc_html( $timestamp ) . ')</span>';
+                         }
                     } else {
                         echo esc_html($value);
                     }
