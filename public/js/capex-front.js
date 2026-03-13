@@ -146,7 +146,17 @@ jQuery(document).ready(function($) {
                     isValid = false;
                     highlightError($input, true);
                     errorMessages.push('• <b>' + labelText + ':</b> არასწორი ელ-ფოსტის ფორმატი.');
-                    return; 
+                    return;
+                }
+            }
+
+            // Age validation for date fields with max attribute
+            if ($input.attr('type') === 'date' && $input.attr('max') && $input.val() !== '') {
+                if ($input.val() > $input.attr('max')) {
+                    isValid = false;
+                    highlightError($input, true);
+                    errorMessages.push('• <b>' + labelText + ':</b> მომხმარებელი უნდა იყოს მინიმუმ 18 წლის.');
+                    return;
                 }
             }
 

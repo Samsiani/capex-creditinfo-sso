@@ -266,9 +266,22 @@ class Capex_Public {
         elseif ($type === 'radio') {
              echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').'</label>';
              if(!empty($field['options'])) {
-                 foreach($field['options'] as $opt) {
+                 foreach($field['options'] as $idx => $opt) {
+                     // Auto-select from SSO: match by value or by option index for customer_type
+                     $checked = '';
+                     if ( $value !== '' ) {
+                         if ( $value === $opt['value'] ) {
+                             $checked = 'checked';
+                         } elseif ( $sso_map === 'customer_type' ) {
+                             // SSO returns PERSON/COMPANY — map to first/second radio option
+                             if ( ( strtoupper($value) === 'PERSON' && $idx === 0 ) ||
+                                  ( strtoupper($value) === 'COMPANY' && $idx === 1 ) ) {
+                                 $checked = 'checked';
+                             }
+                         }
+                     }
                      echo '<label class="checkbox-label" style="margin-bottom:5px;">';
-                     echo '<input type="radio" name="'.esc_attr($id).'" value="'.esc_attr($opt['value']).'" '.$required.'> ';
+                     echo '<input type="radio" name="'.esc_attr($id).'" value="'.esc_attr($opt['value']).'" '.$required.' '.$checked.'> ';
                      echo esc_html($opt['label']);
                      echo '</label>';
                  }
@@ -287,10 +300,25 @@ class Capex_Public {
              echo '</select>';
         }
         elseif ($type === 'date') {
+            // For DOB fields: date-only, max = 18 years ago
+            $is_dob = ($sso_map === 'dob');
+            $input_type = $is_dob ? 'date' : 'datetime-local';
+            $max_attr = '';
+            if ( $is_dob ) {
+                $max_date = date( 'Y-m-d', strtotime( '-18 years' ) );
+                $max_attr = 'max="' . $max_date . '"';
+                // Strip time portion if SSO returned datetime
+                if ( $value && strlen($value) > 10 ) {
+                    $value = substr($value, 0, 10);
+                }
+            }
+
             echo '<label class="form-label">'.esc_html($label).' '.($required?'<span class="required">*</span>':'').'</label>';
             echo '<div style="display:flex; gap:10px;">';
-            echo '<input type="datetime-local" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control" value="'.$value.'" '.$required.' '.$autocomplete.'>';
-            echo '<button type="button" class="cx-btn-now" style="padding:0 15px; border:1px solid #ddd; background:#f1f1f1; cursor:pointer; border-radius:4px; font-size:13px;">ახლა</button>';
+            echo '<input type="'.esc_attr($input_type).'" id="'.esc_attr($id).'" name="'.esc_attr($id).'" class="form-control" value="'.$value.'" '.$required.' '.$autocomplete.' '.$max_attr.'>';
+            if ( ! $is_dob ) {
+                echo '<button type="button" class="cx-btn-now" style="padding:0 15px; border:1px solid #ddd; background:#f1f1f1; cursor:pointer; border-radius:4px; font-size:13px;">ახლა</button>';
+            }
             echo '</div>';
        }
         else {
